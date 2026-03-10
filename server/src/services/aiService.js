@@ -65,7 +65,7 @@ ${antiCheatContext}
 - "Low" = Score above 55
 
 Return ONLY valid JSON, nothing else:
-{"genuinenessScore": <number>, "bluffRisk": "<Low|Medium|High>", "feedback": "<explain what made you think it's AI or genuine, quote specific parts of the answer>"}
+{"genuinenessScore": <number>, "bluffRisk": "<Low|Medium|High>", "feedback": "<explain what made you think it's AI or genuine, quote specific parts of the answer and also give the score for the quality of answer>"}
 `;
 
   const response = await model.generateContent(prompt);
