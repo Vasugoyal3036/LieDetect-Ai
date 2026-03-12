@@ -28,7 +28,9 @@ These behavioral signals should SIGNIFICANTLY LOWER the genuineness score. A use
   }
 
   const prompt = `
-You are an interview authenticity analyzer. Your goal is to distinguish between AI-GENERATED/COPY-PASTED answers and GENUINE HUMAN answers.
+You are an interview authenticity analyzer AND answer quality evaluator. Your goals are:
+1. Distinguish between AI-GENERATED/COPY-PASTED answers and GENUINE HUMAN answers.
+2. Evaluate the QUALITY of the answer as an interview response.
 
 Question: "${question}"
 Answer: "${answer}"
@@ -50,7 +52,7 @@ ${antiCheatContext}
 - Shows real emotion: frustration, humor, uncertainty, pride
 - Grammar mistakes or typos = more likely human = score HIGHER not lower
 
-**SCORING:**
+**GENUINENESS SCORING:**
 - 10-35: Almost certainly AI-generated or copy-pasted. Polished, generic, buzzword-heavy.
 - 36-55: Suspicious. Could be AI-assisted or heavily rehearsed.
 - 56-75: Likely genuine. Natural language, some personal details.
@@ -64,8 +66,25 @@ ${antiCheatContext}
 - "Medium" = Score 40-55
 - "Low" = Score above 55
 
+**ANSWER QUALITY SCORING (0-100):**
+Evaluate how GOOD the answer is as an interview response, regardless of whether it's AI-generated or human:
+- **Relevance (0-25):** Does the answer directly address the question asked?
+- **Depth (0-25):** Does it provide sufficient detail, examples, or reasoning?
+- **Clarity (0-25):** Is the answer clear, well-communicated, and easy to follow?
+- **Impact (0-25):** Does it use concrete examples, metrics, or outcomes that demonstrate real value?
+
+Quality score ranges:
+- 0-20: Poor — irrelevant, vague, or no real substance
+- 21-40: Below Average — partially relevant but lacks depth or detail
+- 41-60: Average — addresses the question but nothing stands out
+- 61-80: Good — clear, relevant, with solid examples or reasoning
+- 81-100: Excellent — compelling, specific, and would impress an interviewer
+
+**SUGGESTED ANSWER:**
+If the answerQualityScore is BELOW 75, provide a "suggestedAnswer" — a strong, natural, human-sounding model answer for the question that the user can learn from. Keep it concise (3-5 sentences). If the score is 75 or above, set suggestedAnswer to null.
+
 Return ONLY valid JSON, nothing else:
-{"genuinenessScore": <number>, "bluffRisk": "<Low|Medium|High>", "feedback": "<explain what made you think it's AI or genuine, quote specific parts of the answer and also give the score for the quality of answer>"}
+{"genuinenessScore": <number>, "bluffRisk": "<Low|Medium|High>", "feedback": "<explain what made you think it's AI or genuine, quote specific parts of the answer>", "answerQualityScore": <number>, "suggestedAnswer": "<a strong model answer if quality < 75, otherwise null>"}
 `;
 
   const response = await model.generateContent(prompt);
@@ -86,6 +105,7 @@ Return ONLY valid JSON, nothing else:
       genuinenessScore: 60,
       bluffRisk: "Medium",
       feedback: text,
+      answerQualityScore: 50,
     };
   }
 }

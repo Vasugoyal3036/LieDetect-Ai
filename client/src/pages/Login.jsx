@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { GoogleLogin } from '@react-oauth/google';
 import axios from '../api/axios';
 
 const glassCard = {
@@ -29,25 +30,94 @@ const inputStyle = {
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  // Show session expired message if redirected
+  useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('expired')) {
+      setError('Your session has expired. Please log in again.');
+      // Clean up the URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
+
+    if (showTwoFactor) {
+      // Handle 2FA Verification
+      try {
+        const response = await axios.post('/auth/verify-2fa', { email, otp });
+        const { _id, name, email: userEmail, token } = response.data;
+        login({ _id, name, email: userEmail }, token);
+        navigate('/dashboard');
+      } catch (err) {
+        setError(err.response?.data?.message || 'Invalid 2FA Code. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const response = await axios.post('/auth/login', { email, password });
+      
+      // If 2FA is triggered
+      if (response.data.requiresTwoFactor) {
+        setShowTwoFactor(true);
+        setLoading(false);
+        return;
+      }
+
       const { _id, name, email: userEmail, token } = response.data;
       login({ _id, name, email: userEmail }, token);
       navigate('/dashboard');
     } catch (err) {
+      // Check if email verification is required
+      if (err.response?.status === 403 && err.response?.data?.requiresVerification) {
+        navigate('/verify-email', { state: { email: err.response.data.email } });
+        return;
+      }
       setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
+      if (!showTwoFactor) setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await axios.post('/auth/google', { token: credentialResponse.credential });
+      
+      // If 2FA is triggered
+      if (response.data.requiresTwoFactor) {
+        setEmail(response.data.email); // Need to save it in state manually
+        setShowTwoFactor(true);
+        setLoading(false);
+        return;
+      }
+
+      const { _id, name, email: userEmail, token } = response.data;
+      login({ _id, name, email: userEmail }, token);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Login failed. Please try again.');
       setLoading(false);
     }
+  };
+
+  const handleGoogleFailure = () => {
+    setError('Google Sign-In failed or was cancelled.');
   };
 
   return (
@@ -112,39 +182,74 @@ export default function Login() {
             </div>
 
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
-                  <i className="fas fa-envelope" style={{ marginRight: '0.4rem', color: '#6366f1' }}></i>
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  style={inputStyle}
-                  onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
-                  required
-                />
-              </div>
+              {!showTwoFactor ? (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                      <i className="fas fa-envelope" style={{ marginRight: '0.4rem', color: '#6366f1' }}></i>
+                      Email Address
+                    </label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      style={inputStyle}
+                      onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
-                  <i className="fas fa-lock" style={{ marginRight: '0.4rem', color: '#6366f1' }}></i>
-                  Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  style={inputStyle}
-                  onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)'; }}
-                  onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
-                  required
-                />
-              </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                      <i className="fas fa-lock" style={{ marginRight: '0.4rem', color: '#6366f1' }}></i>
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      style={inputStyle}
+                      onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)'; }}
+                      onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                      required
+                    />
+                    <div style={{ textAlign: 'right', marginTop: '0.5rem' }}>
+                      <Link to="/forgot-password" style={{ color: '#8b5cf6', fontSize: '0.85rem', textDecoration: 'none', fontWeight: 500, transition: 'color 0.3s' }} onMouseEnter={e => e.currentTarget.style.color = '#c084fc'} onMouseLeave={e => e.currentTarget.style.color = '#8b5cf6'}>
+                        Forgot your password?
+                      </Link>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="animate-fade-in">
+                  <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', padding: '1rem', borderRadius: '10px', marginBottom: '1rem', color: '#d1fae5', fontSize: '0.9rem', textAlign: 'center' }}>
+                     A 6-digit code has been sent to your email.
+                  </div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                    <i className="fas fa-shield-alt" style={{ marginRight: '0.4rem', color: '#10b981' }}></i>
+                    Authentication Code
+                  </label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="123456"
+                    maxLength={6}
+                    style={{...inputStyle, textAlign: 'center', letterSpacing: '4px', fontSize: '1.25rem', fontWeight: 'bold'}}
+                    onFocus={e => { e.target.style.borderColor = '#10b981'; e.target.style.boxShadow = '0 0 0 3px rgba(16,185,129,0.15)'; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                    required
+                  />
+                  <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+                    <button type="button" onClick={() => setShowTwoFactor(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                      Cancel and go back
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div style={{
@@ -177,12 +282,12 @@ export default function Login() {
                 {loading ? (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
                     <span style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }} className="animate-spin"></span>
-                    Signing in...
+                    Processing...
                   </span>
                 ) : (
                   <>
-                    <i className="fas fa-sign-in-alt" style={{ marginRight: '0.5rem' }}></i>
-                    Sign In
+                    <i className={showTwoFactor ? "fas fa-shield-check" : "fas fa-sign-in-alt"} style={{ marginRight: '0.5rem' }}></i>
+                    {showTwoFactor ? "Verify Code" : "Sign In"}
                   </>
                 )}
               </button>
@@ -193,9 +298,21 @@ export default function Login() {
                 <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.08)' }}></div>
               </div>
               <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-                <span style={{ padding: '0 1rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem', background: 'transparent' }}>or</span>
+                <span style={{ padding: '0 1rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem', background: 'var(--bg-color, #1a1a3e)' }}>or single sign-on</span>
               </div>
             </div>
+
+            {!showTwoFactor && (
+               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                 <GoogleLogin
+                   onSuccess={handleGoogleSuccess}
+                   onError={handleGoogleFailure}
+                   theme="filled_black"
+                   shape="pill"
+                   size="large"
+                 />
+               </div>
+            )}
 
             <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)' }}>
               Don't have an account?{' '}

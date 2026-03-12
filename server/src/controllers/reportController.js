@@ -1,5 +1,6 @@
 const Report = require("../models/Report");
 const Session = require("../models/Session");
+const User = require("../models/User");
 const PDFDocument = require("pdfkit");
 const { v4: uuidv4 } = require("uuid");
 
@@ -11,9 +12,13 @@ exports.createReport = async (req, res) => {
             return res.status(400).json({ message: "At least one session is required" });
         }
 
+        const workspaceId = req.user.adminId || req.user._id;
+        const teamMembers = await User.find({ $or: [{ _id: workspaceId }, { adminId: workspaceId }] }).select('_id');
+        const teamIds = teamMembers.map(u => u._id);
+
         const sessions = await Session.find({
             _id: { $in: sessionIds },
-            user: req.user._id,
+            user: { $in: teamIds },
         });
 
         if (sessions.length === 0) {
@@ -40,10 +45,14 @@ exports.createReport = async (req, res) => {
     }
 };
 
-// Get all reports for current user
+// Get all reports for current workspace
 exports.getReports = async (req, res) => {
     try {
-        const reports = await Report.find({ user: req.user._id })
+        const workspaceId = req.user.adminId || req.user._id;
+        const teamMembers = await User.find({ $or: [{ _id: workspaceId }, { adminId: workspaceId }] }).select('_id');
+        const teamIds = teamMembers.map(u => u._id);
+
+        const reports = await Report.find({ user: { $in: teamIds } })
             .sort({ createdAt: -1 })
             .populate("sessions");
         res.json(reports);
@@ -55,10 +64,15 @@ exports.getReports = async (req, res) => {
 // Get a single report by ID (authenticated)
 exports.getReport = async (req, res) => {
     try {
+        const workspaceId = req.user.adminId || req.user._id;
+        const teamMembers = await User.find({ $or: [{ _id: workspaceId }, { adminId: workspaceId }] }).select('_id');
+        const teamIds = teamMembers.map(u => u._id.toString());
+
         const report = await Report.findById(req.params.id).populate("sessions");
         if (!report) return res.status(404).json({ message: "Report not found" });
-        if (report.user.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ message: "Access denied" });
+
+        if (!teamIds.includes(report.user.toString())) {
+            return res.status(403).json({ message: "Access denied: Report not in your workspace" });
         }
         res.json(report);
     } catch (error) {
@@ -87,9 +101,14 @@ exports.getSharedReport = async (req, res) => {
 // Delete a report
 exports.deleteReport = async (req, res) => {
     try {
+        const workspaceId = req.user.adminId || req.user._id;
+        const teamMembers = await User.find({ $or: [{ _id: workspaceId }, { adminId: workspaceId }] }).select('_id');
+        const teamIds = teamMembers.map(u => u._id.toString());
+
         const report = await Report.findById(req.params.id);
         if (!report) return res.status(404).json({ message: "Report not found" });
-        if (report.user.toString() !== req.user._id.toString()) {
+
+        if (!teamIds.includes(report.user.toString())) {
             return res.status(403).json({ message: "Access denied" });
         }
         await report.deleteOne();

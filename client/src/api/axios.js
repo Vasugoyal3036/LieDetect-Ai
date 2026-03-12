@@ -22,7 +22,9 @@ instance.interceptors.response.use(
       if (message.includes("expired") || message.includes("Token failed")) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        window.location.href = "/login";
+        
+        // Show session expired via URL param
+        window.location.href = "/login?expired=true";
       }
     }
     return Promise.reject(error);

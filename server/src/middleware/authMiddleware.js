@@ -4,7 +4,7 @@ const User=require('../models/User');
 const protect = async (req,res,next) => {
   let token;
 
-  try{
+  try {
     if(
       req.headers.authorization &&
       req.headers.authorization.startsWith("Bearer")
@@ -27,11 +27,14 @@ const protect = async (req,res,next) => {
       res.status(401).json({message: "Not authorized, no token"});
     }
 
-  }
-  catch(error){
+  } catch(error){
     console.error(error);
-    res.status(401).json({message: "Token failed"});
-}
+    if (error.name === 'TokenExpiredError') {
+      res.status(401).json({ message: "Token expired. Please log in again." });
+    } else {
+      res.status(401).json({ message: "Token failed" });
+    }
+  }
 };
 
 module.exports=protect;

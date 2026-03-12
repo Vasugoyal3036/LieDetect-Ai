@@ -118,19 +118,48 @@ export default function Interview() {
     setInterviewStarted(true);
   };
 
+  // Use a ref to capture the latest video blob (avoids stale closure)
+  const videoBlobRef = useRef(null);
+  const handleRecordingComplete = useCallback((blob) => {
+    setVideoBlob(blob);
+    videoBlobRef.current = blob;
+  }, []);
+
   const submitAnswer = async () => {
     if (!answer.trim()) { triggerWarning('Please provide an answer first.', '#ef4444'); return; }
     setLoading(true);
-    if (videoEnabled) setIsRecording(false); // Stop recording
     const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
     const typingSpeed = timeSpent > 0 ? Math.round((answer.length / timeSpent) * 60) : 0;
 
     try {
-      // Upload video if recorded
+      // Stop recording and wait for blob
       let videoUrl = '';
-      if (videoBlob) {
+      if (videoEnabled && isRecording) {
+        setIsRecording(false);
+        // Wait for the blob to be created by MediaRecorder.onstop
+        const blob = await new Promise((resolve) => {
+          const checkBlob = () => {
+            if (videoBlobRef.current) {
+              resolve(videoBlobRef.current);
+            } else {
+              setTimeout(checkBlob, 100);
+            }
+          };
+          // Give MediaRecorder time to stop and fire onstop
+          setTimeout(checkBlob, 300);
+        });
+        if (blob) {
+          const formData = new FormData();
+          formData.append('video', blob, 'recording.webm');
+          const uploadRes = await axios.post('/upload/video', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          });
+          videoUrl = uploadRes.data.filePath;
+        }
+      } else if (videoBlobRef.current) {
+        // Recording was already stopped, blob exists
         const formData = new FormData();
-        formData.append('video', videoBlob, 'recording.webm');
+        formData.append('video', videoBlobRef.current, 'recording.webm');
         const uploadRes = await axios.post('/upload/video', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -158,6 +187,8 @@ export default function Interview() {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setAnswer('');
       setResult(null);
+      setVideoBlob(null);
+      videoBlobRef.current = null;
     } else {
       navigate('/history');
     }
@@ -330,7 +361,7 @@ export default function Interview() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                 <div style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: '14px', padding: '1.5rem' }}>
                   <p style={{ fontSize: '0.8rem', color: '#818cf8', fontWeight: 600, marginBottom: '0.5rem' }}><i className="fas fa-chart-line" style={{ marginRight: '0.4rem' }}></i> Genuineness Score</p>
                   <p style={{ fontSize: '2.8rem', fontWeight: 800, color: '#fff' }}>{result.genuinenessScore}</p>
@@ -346,6 +377,23 @@ export default function Interview() {
                   </p>
                   <p style={{ fontSize: '2.8rem', fontWeight: 800, color: result.bluffRisk === 'Low' ? '#10b981' : result.bluffRisk === 'Medium' ? '#f59e0b' : '#ef4444' }}>{result.bluffRisk}</p>
                 </div>
+                {/* Answer Quality Score */}
+                {(() => {
+                  const qs = result.answerQualityScore || 0;
+                  const qColor = qs >= 81 ? '#10b981' : qs >= 61 ? '#3b82f6' : qs >= 41 ? '#f59e0b' : '#ef4444';
+                  const qBg = qs >= 81 ? 'rgba(16,185,129,0.08)' : qs >= 61 ? 'rgba(59,130,246,0.08)' : qs >= 41 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)';
+                  const qBorder = qs >= 81 ? 'rgba(16,185,129,0.2)' : qs >= 61 ? 'rgba(59,130,246,0.2)' : qs >= 41 ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)';
+                  const qLabel = qs >= 81 ? 'Excellent' : qs >= 61 ? 'Good' : qs >= 41 ? 'Average' : qs >= 21 ? 'Below Average' : 'Poor';
+                  return (
+                    <div style={{ background: qBg, border: `1px solid ${qBorder}`, borderRadius: '14px', padding: '1.5rem' }}>
+                      <p style={{ fontSize: '0.8rem', color: qColor, fontWeight: 600, marginBottom: '0.5rem' }}>
+                        <i className="fas fa-star" style={{ marginRight: '0.4rem' }}></i> Answer Quality
+                      </p>
+                      <p style={{ fontSize: '2.8rem', fontWeight: 800, color: '#fff' }}>{qs}</p>
+                      <p style={{ fontSize: '0.7rem', color: qColor, marginTop: '0.25rem', fontWeight: 600 }}>{qLabel}</p>
+                    </div>
+                  );
+                })()}
               </div>
 
               {flags.length > 0 && (
@@ -365,6 +413,16 @@ export default function Interview() {
                 </h3>
                 <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.8 }}>{result.feedback}</p>
               </div>
+
+              {/* Suggested Answer */}
+              {result.suggestedAnswer && result.answerQualityScore < 75 && (
+                <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderLeft: '3px solid #10b981', borderRadius: '14px', padding: '1.5rem' }}>
+                  <h3 style={{ fontWeight: 700, color: '#6ee7b7', marginBottom: '0.75rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fas fa-lightbulb" style={{ color: '#10b981' }}></i> Suggested Answer
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.8, fontStyle: 'italic' }}>{result.suggestedAnswer}</p>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                 {currentQuestionIndex > 0 && (
@@ -441,7 +499,7 @@ export default function Interview() {
             {videoEnabled ? 'Disable Video Recording' : 'Enable Video Recording'}
           </button>
           {videoEnabled && (
-            <VideoRecorder isRecording={isRecording} onRecordingComplete={(blob) => setVideoBlob(blob)} />
+            <VideoRecorder isRecording={isRecording} onRecordingComplete={handleRecordingComplete} />
           )}
         </div>
 

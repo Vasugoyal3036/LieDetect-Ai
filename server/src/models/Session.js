@@ -27,6 +27,14 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     default: "Low",
   },
+  answerQualityScore: {
+    type: Number,
+    default: 0,
+  },
+  suggestedAnswer: {
+    type: String,
+    default: "",
+  },
   category: {
     type: String,
   },

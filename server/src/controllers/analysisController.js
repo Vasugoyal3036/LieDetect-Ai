@@ -28,6 +28,8 @@ exports.analyze = async (req, res) => {
       feedback: aiResult.feedback,
       genuinenessScore: aiResult.genuinenessScore,
       bluffRisk: aiResult.bluffRisk,
+      answerQualityScore: aiResult.answerQualityScore || 0,
+      suggestedAnswer: aiResult.suggestedAnswer || "",
       category,
       tabSwitchCount: antiCheat?.tabSwitchCount || 0,
       pasteAttempts: antiCheat?.pasteAttempts || 0,

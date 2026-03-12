@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { GoogleLogin } from '@react-oauth/google';
 import axios from '../api/axios';
 
 const glassCard = {
@@ -34,7 +35,7 @@ export default function Signup() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { login } = useAuth();
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -45,10 +46,9 @@ export default function Signup() {
     }
     setLoading(true);
     try {
-      const response = await axios.post('/auth/signup', { name, email, password });
-      const { _id, email: userEmail, token } = response.data;
-      signup({ _id, name, email: userEmail }, token);
-      navigate('/dashboard');
+      await axios.post('/auth/signup', { name, email, password });
+      // Redirect to email verification page
+      navigate('/verify-email', { state: { email } });
     } catch (err) {
       setError(err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
@@ -58,6 +58,26 @@ export default function Signup() {
 
   const handleFocus = (e) => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.15)'; };
   const handleBlur = (e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await axios.post('/auth/google', { token: credentialResponse.credential });
+      
+      const { _id, name, email: userEmail, token } = response.data;
+      login({ _id, name, email: userEmail }, token);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Signup failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleFailure = () => {
+    setError('Google Sign-In failed or was cancelled.');
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
@@ -153,6 +173,25 @@ export default function Signup() {
               )}
             </button>
           </form>
+
+          <div style={{ position: 'relative', margin: '1.5rem 0' }}>
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center' }}>
+              <div style={{ width: '100%', borderTop: '1px solid rgba(255,255,255,0.08)' }}></div>
+            </div>
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+              <span style={{ padding: '0 1rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem', background: 'var(--bg-color, #1a1a3e)' }}>or single sign-on</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleFailure}
+              theme="filled_black"
+              shape="pill"
+              size="large"
+            />
+          </div>
 
           <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', marginTop: '1.5rem' }}>
             Already have an account?{' '}

@@ -1,14 +1,19 @@
 // Import Session model
 const Session = require("../models/Session");
 
+const User = require("../models/User");
+
+// Fetch all sessions of this workspace
 exports.getAnalytics = async (req, res) => {
   try {
 
-    // Get logged-in user's ID
-    const userId = req.user._id;
+    // Get workspace members
+    const workspaceId = req.user.adminId || req.user._id;
+    const teamMembers = await User.find({ $or: [{ _id: workspaceId }, { adminId: workspaceId }] }).select('_id');
+    const teamIds = teamMembers.map(u => u._id);
 
-    // Fetch all sessions of this user
-    const sessions = await Session.find({ user: userId });
+    // Fetch all sessions
+    const sessions = await Session.find({ user: { $in: teamIds } });
 
     // If no sessions yet
     if (sessions.length === 0) {

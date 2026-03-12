@@ -154,7 +154,7 @@ export default function Feedback() {
               </div>
 
               {/* Score Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                 <div style={{
                   background: 'rgba(99,102,241,0.06)',
                   border: '1px solid rgba(99,102,241,0.15)',
@@ -196,6 +196,31 @@ export default function Feedback() {
                     {selectedSession.bluffRisk === 'Low' ? 'Authentic response' : selectedSession.bluffRisk === 'Medium' ? 'Requires verification' : 'High likelihood of deception'}
                   </p>
                 </div>
+
+                {/* Answer Quality Score Card */}
+                {(() => {
+                  const qs = selectedSession.answerQualityScore || 0;
+                  const qColor = qs >= 81 ? '#10b981' : qs >= 61 ? '#3b82f6' : qs >= 41 ? '#f59e0b' : '#ef4444';
+                  const qBg = qs >= 81 ? 'rgba(16,185,129,0.06)' : qs >= 61 ? 'rgba(59,130,246,0.06)' : qs >= 41 ? 'rgba(245,158,11,0.06)' : 'rgba(239,68,68,0.06)';
+                  const qBorder = qs >= 81 ? 'rgba(16,185,129,0.15)' : qs >= 61 ? 'rgba(59,130,246,0.15)' : qs >= 41 ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)';
+                  const qLabel = qs >= 81 ? 'Excellent' : qs >= 61 ? 'Good' : qs >= 41 ? 'Average' : qs >= 21 ? 'Below Average' : 'Poor';
+                  return (
+                    <div style={{
+                      background: qBg,
+                      border: `1px solid ${qBorder}`,
+                      borderRadius: '14px', padding: '1.5rem',
+                      position: 'relative', overflow: 'hidden',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <h3 style={{ fontSize: '0.7rem', fontWeight: 700, color: qColor, textTransform: 'uppercase', letterSpacing: '1px' }}>Answer Quality</h3>
+                        <i className="fas fa-star" style={{ color: qColor, fontSize: '1.25rem' }}></i>
+                      </div>
+                      <p style={{ fontSize: '2.8rem', fontWeight: 800, color: '#fff' }}>{qs}</p>
+                      <p style={{ fontSize: '0.75rem', color: qColor, marginTop: '0.25rem', fontWeight: 600 }}>{qLabel}</p>
+                      <div style={{ position: 'absolute', top: '-40%', right: '-20%', width: '120px', height: '120px', background: `radial-gradient(circle, ${qBorder} 0%, transparent 70%)`, borderRadius: '50%', pointerEvents: 'none' }}></div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* AI Feedback */}
@@ -210,6 +235,21 @@ export default function Feedback() {
                 </h3>
                 <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.9, fontSize: '1.05rem' }}>{selectedSession.feedback}</p>
               </div>
+
+              {/* Suggested Answer */}
+              {selectedSession.suggestedAnswer && selectedSession.answerQualityScore < 75 && (
+                <div style={{
+                  background: 'rgba(16,185,129,0.05)',
+                  border: '1px solid rgba(16,185,129,0.12)',
+                  borderLeft: '3px solid #10b981',
+                  borderRadius: '14px', padding: '1.75rem',
+                }}>
+                  <h3 style={{ fontSize: '0.7rem', fontWeight: 700, color: '#6ee7b7', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fas fa-lightbulb"></i> Suggested Answer
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.9, fontSize: '1.05rem', fontStyle: 'italic' }}>{selectedSession.suggestedAnswer}</p>
+                </div>
+              )}
 
               {/* Category */}
               <div style={{ ...glassCard, padding: '1.25rem 1.5rem' }}>
