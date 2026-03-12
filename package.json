@@ -1,4 +1,18 @@
 {
+  "name": "liedetector",
+  "version": "1.0.0",
+  "description": "Lie Detector Full Stack Application",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build:client": "npm run build --prefix client"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
   "dependencies": {
     "openai": "^6.22.0"
   }
