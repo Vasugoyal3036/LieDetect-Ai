@@ -1,6 +1,6 @@
 const nodemailer = require("nodemailer");
 
-// Create reusable transporter
+// Create reusable transporter with timeout
 const createTransporter = () => {
   return nodemailer.createTransport({
     service: "gmail",
@@ -8,6 +8,9 @@ const createTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS, // App password (not regular password)
     },
+    // Add timeouts to fail faster if credentials are wrong
+    connectionTimeout: 5000,  // 5 seconds
+    socketTimeout: 5000,      // 5 seconds
   });
 };
 
