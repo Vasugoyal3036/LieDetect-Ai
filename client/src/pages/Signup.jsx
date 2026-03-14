@@ -40,17 +40,35 @@ export default function Signup() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setError('');
+    
+    // Validate passwords match
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+    
+    // Validate password length
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     setLoading(true);
     try {
-      await axios.post('/auth/signup', { name, email, password });
+      const response = await axios.post('/auth/signup', { name, email, password });
       // Redirect to email verification page
       navigate('/verify-email', { state: { email } });
     } catch (err) {
-      setError(err.response?.data?.message || 'Signup failed. Please try again.');
+      const errorMessage = err.response?.data?.message || err.message || 'Signup failed. Please try again.';
+      console.error('Signup error:', err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

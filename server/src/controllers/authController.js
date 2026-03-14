@@ -30,6 +30,22 @@ exports.signup = async (req, res) => {
     // Get data from request body
     const { name, email, password } = req.body;
 
+    // Validate input
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email, and password are required" });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ message: "Invalid email format" });
+    }
+
+    // Validate password length
+    if (password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser && existingUser.isVerified) {
@@ -61,7 +77,18 @@ exports.signup = async (req, res) => {
     }
 
     // Send verification email with magic link
-    await sendVerificationEmail(email, verificationToken, name);
+    try {
+      await sendVerificationEmail(email, verificationToken, name);
+    } catch (emailError) {
+      console.error("Email sending error:", emailError);
+      // Still return success - user account was created, just email failed
+      // User can resend verification email later
+      return res.json({
+        message: "Account created. Verification email may be delayed. Check spam folder or use resend option.",
+        email: user.email,
+        requiresVerification: true,
+      });
+    }
 
     // Send response
     res.json({
@@ -70,8 +97,18 @@ exports.signup = async (req, res) => {
       requiresVerification: true,
     });
   } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({ message: "Signup failed. Please try again." });
+    console.error("Signup error:", error.message);
+    
+    // Provide specific error messages
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "Email already registered" });
+    }
+    
+    res.status(500).json({ 
+      message: process.env.NODE_ENV === "development" 
+        ? `Signup failed: ${error.message}` 
+        : "Signup failed. Please try again." 
+    });
   }
 };
 
