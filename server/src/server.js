@@ -54,7 +54,9 @@ const startServer = async () => {
   });
 
   // Routes
+  console.log("📡 Registering routes...");
   app.use("/api/auth", require("./routes/authRoutes"));
+  console.log("✓ Auth routes registered at /api/auth");
   app.use("/api/analysis", require("./routes/analysisRoutes"));
   app.use("/api/history", require("./routes/historyRoutes"));
   app.use("/api/analytics", require("./routes/analyticsRoutes"));
@@ -63,6 +65,7 @@ const startServer = async () => {
   app.use("/api/reports", require("./routes/reportRoutes"));
   app.use("/api/subscription", require("./routes/subscriptionRoutes"));
   app.use("/api/team", require("./routes/teamRoutes"));
+  console.log("✓ All routes registered");
 
   // Serve uploaded files
   const path = require("path");

@@ -31,4 +31,7 @@ const passwordResetLimiter = rateLimit({
   skipSuccessfulRequests: false,
 });
 
+// For debugging
+console.log("✓ Rate limiters initialized");
+
 module.exports = { limiter, authLimiter, signupLimiter, passwordResetLimiter };
