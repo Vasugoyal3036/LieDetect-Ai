@@ -13,6 +13,9 @@ const startServer = async () => {
   await connectDB();
   const app = express();
 
+  // Trust proxy - important for rate-limiting behind reverse proxy (Render, etc)
+  app.set('trust proxy', 1);
+
   // Security middleware
   app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
