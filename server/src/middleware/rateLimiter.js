@@ -15,4 +15,20 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
 });
 
-module.exports = { limiter, authLimiter };
+// Stricter limiter for signup (prevent spam account creation)
+const signupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // limit each IP to 5 signup attempts per hour
+  message: { message: 'Too many accounts created from this IP. Please try again later.' },
+  skipSuccessfulRequests: false,
+});
+
+// Stricter limiter for password reset (prevent abuse)
+const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // limit each IP to 3 password reset attempts per hour
+  message: { message: 'Too many password reset requests. Please try again later.' },
+  skipSuccessfulRequests: false,
+});
+
+module.exports = { limiter, authLimiter, signupLimiter, passwordResetLimiter };
