@@ -76,23 +76,16 @@ exports.signup = async (req, res) => {
       });
     }
 
-    // Send verification email with magic link
-    try {
-      await sendVerificationEmail(email, verificationToken, name);
-    } catch (emailError) {
-      console.error("Email sending error:", emailError);
-      // Still return success - user account was created, just email failed
-      // User can resend verification email later
-      return res.json({
-        message: "Account created. Verification email may be delayed. Check spam folder or use resend option.",
-        email: user.email,
-        requiresVerification: true,
-      });
-    }
+    // Send verification email with magic link (non-blocking)
+    // Don't wait for email - send response immediately and try to send email in background
+    sendVerificationEmail(email, verificationToken, name).catch(emailError => {
+      console.error("Background email sending error:", emailError);
+      // Log but don't block - email sent in background
+    });
 
-    // Send response
+    // Always respond with success - email will be sent asynchronously
     res.json({
-      message: "Verification link sent to your email",
+      message: "Account created successfully! Check your email for verification link. If you don't see it, check spam or use resend option.",
       email: user.email,
       requiresVerification: true,
     });
