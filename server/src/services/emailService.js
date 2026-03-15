@@ -65,13 +65,17 @@ const sendVerificationEmail = async (email, token, name) => {
   `;
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_USER || "onboarding@resend.dev",
       to: email,
       subject: "Verify Your Email - LieDetect AI",
       html: emailContent,
     });
-    console.log("✓ Verification email sent to:", email);
+    if (error) {
+      console.error("Resend API error:", error);
+      throw new Error(`Resend error: ${JSON.stringify(error)}`);
+    }
+    console.log("✓ Verification email sent to:", email, "ID:", data?.id);
   } catch (error) {
     console.error("Resend verification email error:", error);
     throw error;
@@ -135,13 +139,17 @@ const sendPasswordResetEmail = async (email, token, name) => {
   `;
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_USER || "onboarding@resend.dev",
       to: email,
       subject: "Reset Your Password - LieDetect AI",
       html: emailContent,
     });
-    console.log("✓ Password reset email sent to:", email);
+    if (error) {
+      console.error("Resend API error:", error);
+      throw new Error(`Resend error: ${JSON.stringify(error)}`);
+    }
+    console.log("✓ Password reset email sent to:", email, "ID:", data?.id);
   } catch (error) {
     console.error("Resend password reset error:", error);
     throw error;
@@ -202,13 +210,17 @@ const sendTwoFactorEmail = async (email, otp, name) => {
   `;
 
   try {
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_USER || "onboarding@resend.dev",
       to: email,
       subject: "Your 2FA Code - LieDetect AI",
       html: emailContent,
     });
-    console.log("✓ 2FA email sent to:", email);
+    if (error) {
+      console.error("Resend API error:", error);
+      throw new Error(`Resend error: ${JSON.stringify(error)}`);
+    }
+    console.log("✓ 2FA email sent to:", email, "ID:", data?.id);
   } catch (error) {
     console.error("Resend 2FA error:", error);
     throw error;
