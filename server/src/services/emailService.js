@@ -1,14 +1,24 @@
-const { Resend } = require("resend");
+const nodemailer = require("nodemailer");
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize transporter
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 
 // Send verification email with magic link
 const sendVerificationEmail = async (email, token, name) => {
   const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
   const verifyLink = `${clientUrl}/verify-email?token=${token}`;
 
-  const emailContent = `
+  const mailOptions = {
+    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Verify Your Email - LieDetect AI",
+    html: `
     <!DOCTYPE html>
     <html>
     <head>
@@ -62,22 +72,14 @@ const sendVerificationEmail = async (email, token, name) => {
       </table>
     </body>
     </html>
-  `;
+    `
+  };
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_USER || "onboarding@resend.dev",
-      to: email,
-      subject: "Verify Your Email - LieDetect AI",
-      html: emailContent,
-    });
-    if (error) {
-      console.error("Resend API error:", error);
-      throw new Error(`Resend error: ${JSON.stringify(error)}`);
-    }
-    console.log("✓ Verification email sent to:", email, "ID:", data?.id);
+    await transporter.sendMail(mailOptions);
+    console.log("✓ Verification email sent to:", email);
   } catch (error) {
-    console.error("Resend verification email error:", error);
+    console.error("Nodemailer verification email error:", error);
     throw error;
   }
 };
@@ -87,7 +89,11 @@ const sendPasswordResetEmail = async (email, token, name) => {
   const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
   const resetLink = `${clientUrl}/reset-password?token=${token}`;
 
-  const emailContent = `
+  const mailOptions = {
+    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Reset Your Password - LieDetect AI",
+    html: `
     <!DOCTYPE html>
     <html>
     <head>
@@ -136,29 +142,25 @@ const sendPasswordResetEmail = async (email, token, name) => {
       </table>
     </body>
     </html>
-  `;
+    `
+  };
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_USER || "onboarding@resend.dev",
-      to: email,
-      subject: "Reset Your Password - LieDetect AI",
-      html: emailContent,
-    });
-    if (error) {
-      console.error("Resend API error:", error);
-      throw new Error(`Resend error: ${JSON.stringify(error)}`);
-    }
-    console.log("✓ Password reset email sent to:", email, "ID:", data?.id);
+    await transporter.sendMail(mailOptions);
+    console.log("✓ Password reset email sent to:", email);
   } catch (error) {
-    console.error("Resend password reset error:", error);
+    console.error("Nodemailer password reset error:", error);
     throw error;
   }
 };
 
 // Send 2FA email
 const sendTwoFactorEmail = async (email, otp, name) => {
-  const emailContent = `
+  const mailOptions = {
+    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: "Your 2FA Code - LieDetect AI",
+    html: `
     <!DOCTYPE html>
     <html>
     <head>
@@ -207,22 +209,14 @@ const sendTwoFactorEmail = async (email, otp, name) => {
       </table>
     </body>
     </html>
-  `;
+    `
+  };
 
   try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_USER || "onboarding@resend.dev",
-      to: email,
-      subject: "Your 2FA Code - LieDetect AI",
-      html: emailContent,
-    });
-    if (error) {
-      console.error("Resend API error:", error);
-      throw new Error(`Resend error: ${JSON.stringify(error)}`);
-    }
-    console.log("✓ 2FA email sent to:", email, "ID:", data?.id);
+    await transporter.sendMail(mailOptions);
+    console.log("✓ 2FA email sent to:", email);
   } catch (error) {
-    console.error("Resend 2FA error:", error);
+    console.error("Nodemailer 2FA error:", error);
     throw error;
   }
 };
