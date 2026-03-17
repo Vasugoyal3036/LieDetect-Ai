@@ -9,9 +9,10 @@ const { errorHandler, notFoundHandler } = require("./middleware/errorMiddleware"
 
 const PORT = process.env.PORT || 5001;
 
+const app = express();
+
 const startServer = async () => {
   await connectDB();
-  const app = express();
 
   // Trust proxy - important for rate-limiting behind reverse proxy (Render, etc)
   app.set('trust proxy', 1);
@@ -21,6 +22,8 @@ const startServer = async () => {
     crossOriginResourcePolicy: { policy: "cross-origin" },
   }));
 
+  // ... (rest of the middleware and routes)
+  
   // CORS configuration
   const allowedOrigins = process.env.CLIENT_URL
     ? process.env.CLIENT_URL.split(",")
@@ -28,7 +31,6 @@ const startServer = async () => {
 
   app.use(cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -38,15 +40,11 @@ const startServer = async () => {
     credentials: true,
   }));
 
-  // Body parsing — raw body needed for Razorpay webhook verification
   app.use("/api/subscription/webhook", express.raw({ type: "application/json" }));
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
-
-  // Rate limiting
   app.use("/api/", limiter);
 
-  // Health check
   app.get("/", (req, res) => {
     res.json({
       status: "ok",
@@ -56,10 +54,8 @@ const startServer = async () => {
     });
   });
 
-  // Routes
   console.log("📡 Registering routes...");
   app.use("/api/auth", require("./routes/authRoutes"));
-  console.log("✓ Auth routes registered at /api/auth");
   app.use("/api/analysis", require("./routes/analysisRoutes"));
   app.use("/api/history", require("./routes/historyRoutes"));
   app.use("/api/analytics", require("./routes/analyticsRoutes"));
@@ -68,23 +64,22 @@ const startServer = async () => {
   app.use("/api/reports", require("./routes/reportRoutes"));
   app.use("/api/subscription", require("./routes/subscriptionRoutes"));
   app.use("/api/team", require("./routes/teamRoutes"));
-  console.log("✓ All routes registered");
 
-  // Serve uploaded files
   const path = require("path");
   app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
-  // Error handling
   app.use(notFoundHandler);
   app.use(errorHandler);
 
-  app.listen(PORT, () => {
-    console.log(`✅ LieDetect AI API running on port ${PORT}`);
-    console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-  });
+  if (process.env.NODE_ENV !== 'test' && process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+      console.log(`✅ LieDetect AI API running on port ${PORT}`);
+    });
+  }
 };
 
 startServer().catch(err => {
   console.error("❌ Server failed to start:", err);
-  process.exit(1);
 });
+
+module.exports = app;
