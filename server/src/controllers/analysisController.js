@@ -5,12 +5,12 @@ exports.analyze = async (req, res) => {
   try {
     const { question, answer, category, antiCheat, videoUrl } = req.body;
 
-    if (!question || !answer) {
-      return res.status(400).json({ message: "Question and answer required" });
+    if (!question || !answer && !videoUrl) {
+      return res.status(400).json({ message: "Question and either an answer or a video is required" });
     }
 
-    // Pass anti-cheat metadata to AI for consideration
-    const aiResult = await analyzeAnswer(question, answer, antiCheat || {});
+    // Pass anti-cheat metadata and video file to AI for multimodal analysis
+    const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoUrl);
 
     // Build suspicious flags
     const suspiciousFlags = [];
@@ -24,7 +24,8 @@ exports.analyze = async (req, res) => {
     const session = await Session.create({
       user: req.user._id,
       question,
-      answer,
+      answer: answer || aiResult.transcription || "No text provided",
+      transcription: aiResult.transcription || "",
       feedback: aiResult.feedback,
       genuinenessScore: aiResult.genuinenessScore,
       bluffRisk: aiResult.bluffRisk,

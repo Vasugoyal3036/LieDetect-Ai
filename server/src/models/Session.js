@@ -16,6 +16,10 @@ const sessionSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  transcription: {
+    type: String,
+    default: "",
+  },
   feedback: {
     type: String,
   },

@@ -1,113 +1,132 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleAIFileManager } = require("@google/generative-ai/server");
+const path = require("path");
+const fs = require("fs");
 
-const genai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const API_KEY = process.env.GEMINI_API_KEY;
+const genai = new GoogleGenerativeAI(API_KEY);
+const fileManager = new GoogleAIFileManager(API_KEY);
 
 const model = genai.getGenerativeModel({
-  model: "gemini-2.5-flash"
+  model: "gemini-1.5-flash" // Best for fast multimodal analysis
 });
 
-async function analyzeAnswer(question, answer, antiCheat = {}) {
+/**
+ * Enhanced analysis that can handle text OR video/audio files
+ */
+async function analyzeAnswer(question, answer, antiCheat = {}, videoFilename = null) {
+  try {
+    let promptContext = `Question: "${question}"\n`;
+    let content = [];
 
-  // Build anti-cheat context
-  let antiCheatContext = '';
-  if (antiCheat && Object.keys(antiCheat).length > 0) {
-    const flags = [];
-    if (antiCheat.tabSwitchCount > 0) flags.push(`User switched tabs ${antiCheat.tabSwitchCount} time(s) while answering — they may have consulted AI or searched online`);
-    if (antiCheat.pasteAttempts > 0) flags.push(`User attempted to paste text ${antiCheat.pasteAttempts} time(s) — blocked but still suspicious`);
-    if (antiCheat.typingSpeed > 600) flags.push(`Typing speed was ${antiCheat.typingSpeed} characters/min — abnormally fast, possible hidden paste or autofill`);
-    if (antiCheat.timeSpentSeconds < 10 && answer.length > 100) flags.push(`User submitted ${answer.length} characters in only ${antiCheat.timeSpentSeconds} seconds — humanly impossible for this length`);
+    // 1. If we have a video, handle multimodal analysis
+    if (videoFilename) {
+      const filePath = path.join(__dirname, "../../uploads", videoFilename);
+      
+      if (fs.existsSync(filePath)) {
+        // Upload to Gemini File Manager
+        const uploadResult = await fileManager.uploadFile(filePath, {
+          mimeType: videoFilename.endsWith(".webm") ? "video/webm" : "video/mp4",
+          displayName: "Interview Session",
+        });
 
-    if (flags.length > 0) {
-      antiCheatContext = `
+        // Wait for processing (Gemini needs a moment to 'watch' the file)
+        let file = await fileManager.getFile(uploadResult.file.name);
+        while (file.state === "PROCESSING") {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          file = await fileManager.getFile(uploadResult.file.name);
+        }
 
-**⚠️ BEHAVIORAL RED FLAGS DETECTED:**
-${flags.map(f => `- ${f}`).join('\n')}
+        if (file.state === "FAILED") {
+          throw new Error("Video processing failed in Gemini");
+        }
 
-These behavioral signals should SIGNIFICANTLY LOWER the genuineness score. A user who switches tabs or tries to paste is very likely consulting AI or copying from a source.`;
+        content.push({
+          fileData: {
+            mimeType: file.mimeType,
+            fileUri: file.uri,
+          },
+        });
+
+        promptContext += `
+ANALYZE THIS VIDEO RECORDING:
+1. **Transcription**: Transcribe the user's spoken answer accurately.
+2. **Tone & Behavior**: Analyze the user's voice and behavior. Do they sound rehearsed? Are there suspicious pauses? Do they sound like they are reading from a script or using an AI voice changer?
+3. **Compare**: Compare the spoken answer in this video with the provided text input (if any) for inconsistencies.
+`;
+      }
     }
-  }
 
-  const prompt = `
-You are an interview authenticity analyzer AND answer quality evaluator. Your goals are:
-1. Distinguish between AI-GENERATED/COPY-PASTED answers and GENUINE HUMAN answers.
-2. Evaluate the QUALITY of the answer as an interview response.
+    // 2. Add Anti-Cheat Context
+    let antiCheatContext = '';
+    if (antiCheat && Object.keys(antiCheat).length > 0) {
+      const flags = [];
+      if (antiCheat.tabSwitchCount > 0) flags.push(`User switched tabs ${antiCheat.tabSwitchCount} time(s)`);
+      if (antiCheat.pasteAttempts > 0) flags.push(`User attempted to paste text ${antiCheat.pasteAttempts} time(s)`);
+      if (antiCheat.typingSpeed > 600) flags.push(`Typing speed was ${antiCheat.typingSpeed} CPM — abnormally fast`);
+      if (antiCheat.timeSpentSeconds < 10) flags.push(`Response submitted in only ${antiCheat.timeSpentSeconds}s`);
 
-Question: "${question}"
-Answer: "${answer}"
+      if (flags.length > 0) {
+        antiCheatContext = `\n**BEHAVIORAL RED FLAGS:**\n${flags.map(f => `- ${f}`).join('\n')}`;
+      }
+    }
+
+    const mainPrompt = `
+You are an advanced Interview Authenticity AI. Your goal is to detect fraud (AI generation, reading from scripts, or canned responses).
+
+${promptContext}
+User Provided Text (if any): "${answer || 'N/A'}"
 ${antiCheatContext}
 
-**How to detect AI-GENERATED answers (score LOW: 10-35):**
-- Overly structured with perfect paragraphs and transitions
-- Buzzword-heavy: "leverage", "synergy", "foster", "navigate challenges", "growth mindset", "proactive approach"
-- Reads like a polished article or LinkedIn post — too smooth and professional
-- Uses generic filler like "In my previous role..." without naming any actual company, person, or project
-- Covers every angle perfectly — no real human answers everything so comprehensively
-- Unnaturally long and thorough for a spoken response
+**SCORING CRITERIA:**
+- **Genuineness (0-100)**: 
+  - 80-100: Natural, stuttering is fine, personal anecdotes, specific details.
+  - 40-79: Rehearsed, generic, or slightly robotic.
+  - 0-39: Definitely AI generated, reading from a screen (eyes moving), or flat monotone AI voice.
 
-**How to identify GENUINE HUMAN answers (score HIGH: 55-80):**
-- May be short, informal, or imperfect — that's NORMAL and GOOD
-- Contains personal details (even small ones) or specific situations
-- Has natural casual language, slang, or conversational tone
-- Might ramble slightly, go off-topic, or be a bit messy — that's authentic
-- Shows real emotion: frustration, humor, uncertainty, pride
-- Grammar mistakes or typos = more likely human = score HIGHER not lower
+- **Answer Quality (0-100)**: Relevance and depth.
 
-**GENUINENESS SCORING:**
-- 10-35: Almost certainly AI-generated or copy-pasted. Polished, generic, buzzword-heavy.
-- 36-55: Suspicious. Could be AI-assisted or heavily rehearsed.
-- 56-75: Likely genuine. Natural language, some personal details.
-- 76-90: Very authentic. Specific, personal, emotionally honest, unique voice.
-- 91-100: Exceptionally raw and real. Reserve for deeply personal, specific responses.
+**INSTRUCTIONS:**
+- If a video was provided, use the TRANSCRIPT you generated for the analysis.
+- If the user's eyes are clearly reading from a screen or if the voice sounds monotone/AI, drop the genuineness score significantly.
 
-**CRITICAL RULE:** Short, simple, or casual answers should score 55-70, NOT low. Real humans don't write essays in interviews. Imperfection = authenticity.
-
-**RISK LEVELS:**
-- "High" = Score below 40
-- "Medium" = Score 40-55
-- "Low" = Score above 55
-
-**ANSWER QUALITY SCORING (0-100):**
-Evaluate how GOOD the answer is as an interview response, regardless of whether it's AI-generated or human:
-- **Relevance (0-25):** Does the answer directly address the question asked?
-- **Depth (0-25):** Does it provide sufficient detail, examples, or reasoning?
-- **Clarity (0-25):** Is the answer clear, well-communicated, and easy to follow?
-- **Impact (0-25):** Does it use concrete examples, metrics, or outcomes that demonstrate real value?
-
-Quality score ranges:
-- 0-20: Poor — irrelevant, vague, or no real substance
-- 21-40: Below Average — partially relevant but lacks depth or detail
-- 41-60: Average — addresses the question but nothing stands out
-- 61-80: Good — clear, relevant, with solid examples or reasoning
-- 81-100: Excellent — compelling, specific, and would impress an interviewer
-
-**SUGGESTED ANSWER:**
-If the answerQualityScore is BELOW 75, provide a "suggestedAnswer" — a strong, natural, human-sounding model answer for the question that the user can learn from. Keep it concise (3-5 sentences). If the score is 75 or above, set suggestedAnswer to null.
-
-Return ONLY valid JSON, nothing else:
-{"genuinenessScore": <number>, "bluffRisk": "<Low|Medium|High>", "feedback": "<explain what made you think it's AI or genuine, quote specific parts of the answer>", "answerQualityScore": <number>, "suggestedAnswer": "<a strong model answer if quality < 75, otherwise null>"}
+Return ONLY valid JSON:
+{
+  "transcription": "<full transcription of the audio, if video provided>",
+  "genuinenessScore": <number>,
+  "bluffRisk": "<Low|Medium|High>",
+  "feedback": "<detailed analysis of voice, behavior, and content>",
+  "answerQualityScore": <number>,
+  "suggestedAnswer": "<improved version if quality is low, else null>"
+}
 `;
 
-  const response = await model.generateContent(prompt);
-  let text = response.response.text();
+    content.push(mainPrompt);
 
-  text = text.replace(/```json|```/g, "").trim();
-  const firstBrace = text.indexOf("{");
-  const lastBrace = text.lastIndexOf("}");
+    const result = await model.generateContent(content);
+    let text = result.response.text();
 
-  if (firstBrace !== -1 && lastBrace !== -1) {
-    text = text.slice(firstBrace, lastBrace + 1);
-  }
+    // Clean up JSON response
+    text = text.replace(/```json|```/g, "").trim();
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
 
-  try {
     return JSON.parse(text);
-  } catch {
+
+  } catch (error) {
+    console.error("Multimodal AI Service Error:", error);
     return {
-      genuinenessScore: 60,
+      genuinenessScore: 50,
       bluffRisk: "Medium",
-      feedback: text,
-      answerQualityScore: 50,
+      feedback: "AI analysis failed to process multimodal data. " + error.message,
+      transcription: "Unavailable",
+      answerQualityScore: 0
     };
   }
 }
 
 module.exports = analyzeAnswer;
+
