@@ -2,7 +2,7 @@ const Report = require("../models/Report");
 const Session = require("../models/Session");
 const User = require("../models/User");
 const PDFDocument = require("pdfkit");
-const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 // Generate a report from selected sessions
 exports.createReport = async (req, res) => {
@@ -32,7 +32,7 @@ exports.createReport = async (req, res) => {
             user: req.user._id,
             title: title || "Interview Report",
             sessions: sessionIds,
-            shareToken: uuidv4(),
+            shareToken: crypto.randomUUID(),
             expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
             averageScore: avgScore,
             overallRisk,
