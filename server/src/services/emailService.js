@@ -1,10 +1,15 @@
 const nodemailer = require("nodemailer");
 
+// Validate environment variables
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error("CRITICAL ERROR: EMAIL_USER or EMAIL_PASS environment variables are not set!");
+}
+
 // Initialize transporter
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
   port: 465,
-  secure: true, // true for 465, false for other ports
+  secure: true, 
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
@@ -12,7 +17,12 @@ const transporter = nodemailer.createTransport({
   tls: {
     rejectUnauthorized: false
   },
-  connectionTimeout: 10000, // 10 seconds
+  pool: true, // Use pooling for better performance in some environments
+  connectionTimeout: 10000, 
+  greetingTimeout: 5000,
+  socketTimeout: 10000,
+  debug: true, // Enable debug logging
+  logger: true, // Enable built-in logger to console
 });
 
 // Send verification email with magic link
