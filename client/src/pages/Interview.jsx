@@ -126,18 +126,17 @@ export default function Interview() {
   }, []);
 
   const submitAnswer = async () => {
-    if (!answer.trim()) { triggerWarning('Please provide an answer first.', '#ef4444'); return; }
+    if (!answer.trim() && !videoEnabled) { triggerWarning('Please provide an answer first.', '#ef4444'); return; }
     setLoading(true);
     const timeSpent = Math.round((Date.now() - questionStartTime) / 1000);
     const typingSpeed = timeSpent > 0 ? Math.round((answer.length / timeSpent) * 60) : 0;
 
     try {
-      // Stop recording and wait for blob
-      let videoUrl = '';
+      // Stop recording and wait for blob if video is enabled
+      let finalVideoBlob = null;
       if (videoEnabled && isRecording) {
         setIsRecording(false);
-        // Wait for the blob to be created by MediaRecorder.onstop
-        const blob = await new Promise((resolve) => {
+        finalVideoBlob = await new Promise((resolve) => {
           const checkBlob = () => {
             if (videoBlobRef.current) {
               resolve(videoBlobRef.current);
@@ -145,34 +144,26 @@ export default function Interview() {
               setTimeout(checkBlob, 100);
             }
           };
-          // Give MediaRecorder time to stop and fire onstop
           setTimeout(checkBlob, 300);
         });
-        if (blob) {
-          const formData = new FormData();
-          formData.append('video', blob, 'recording.webm');
-          const uploadRes = await axios.post('/upload/video', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-          videoUrl = uploadRes.data.filePath;
-        }
       } else if (videoBlobRef.current) {
-        // Recording was already stopped, blob exists
-        const formData = new FormData();
-        formData.append('video', videoBlobRef.current, 'recording.webm');
-        const uploadRes = await axios.post('/upload/video', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        videoUrl = uploadRes.data.filePath;
+        finalVideoBlob = videoBlobRef.current;
       }
 
-      const response = await axios.post('/analysis/analyze', {
-        question: currentQuestion,
-        answer,
-        category: selectedBank?.title || 'interview',
-        jobRole,
-        videoUrl,
-        antiCheat: { tabSwitchCount, pasteAttempts, typingSpeed, timeSpentSeconds: timeSpent },
+      // Build FormData to send video + fields in a single request
+      const formData = new FormData();
+      formData.append('question', currentQuestion);
+      formData.append('answer', answer);
+      formData.append('category', selectedBank?.title || 'interview');
+      formData.append('antiCheat', JSON.stringify({ tabSwitchCount, pasteAttempts, typingSpeed, timeSpentSeconds: timeSpent }));
+
+      if (finalVideoBlob) {
+        formData.append('video', finalVideoBlob, 'recording.webm');
+      }
+
+      const response = await axios.post('/analysis/analyze', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // 2 min timeout for video processing
       });
       setResult({ ...response.data.analysis });
     } catch (err) {
@@ -407,6 +398,15 @@ export default function Interview() {
                 </div>
               )}
 
+              {result.transcription && (
+                <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', borderLeft: '3px solid #3b82f6', borderRadius: '14px', padding: '1.5rem' }}>
+                  <h3 style={{ fontWeight: 700, color: '#93c5fd', marginBottom: '0.75rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <i className="fas fa-microphone" style={{ color: '#3b82f6' }}></i> AI Transcription
+                  </h3>
+                  <p style={{ color: 'rgba(255,255,255,0.65)', lineHeight: 1.8, fontStyle: 'italic' }}>"{result.transcription}"</p>
+                </div>
+              )}
+
               <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)', borderLeft: '3px solid #8b5cf6', borderRadius: '14px', padding: '1.5rem' }}>
                 <h3 style={{ fontWeight: 700, color: 'rgba(255,255,255,0.85)', marginBottom: '0.75rem', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <i className="fas fa-robot" style={{ color: '#8b5cf6' }}></i> AI Feedback
@@ -521,15 +521,15 @@ export default function Interview() {
             onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
           />
           <div style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem' }}>
-            <button onClick={submitAnswer} disabled={loading || !answer.trim()}
+            <button onClick={submitAnswer} disabled={loading || (!answer.trim() && !videoEnabled)}
               style={{
                 flex: 1, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white',
                 fontWeight: 700, padding: '0.85rem', borderRadius: '12px', border: 'none', fontSize: '1rem',
                 boxShadow: '0 4px 15px rgba(99,102,241,0.3)', transition: 'all 0.3s',
-                opacity: (loading || !answer.trim()) ? 0.5 : 1, cursor: (loading || !answer.trim()) ? 'not-allowed' : 'pointer',
+                opacity: (loading || (!answer.trim() && !videoEnabled)) ? 0.5 : 1, cursor: (loading || (!answer.trim() && !videoEnabled)) ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
               }}
-              onMouseEnter={e => { if (!loading && answer.trim()) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(99,102,241,0.4)'; } }}
+              onMouseEnter={e => { if (!loading && (answer.trim() || videoEnabled)) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(99,102,241,0.4)'; } }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(99,102,241,0.3)'; }}>
               {loading ? (<><span style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block' }} className="animate-spin"></span> Analyzing...</>) : (<><i className="fas fa-search"></i> Analyze</>)}
             </button>

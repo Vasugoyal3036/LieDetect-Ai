@@ -3,14 +3,24 @@ const analyzeAnswer = require("../services/aiService");
 
 exports.analyze = async (req, res) => {
   try {
-    const { question, answer, category, antiCheat, videoUrl } = req.body;
+    // When sent as multipart/form-data, JSON fields may come as strings
+    let { question, answer, category, antiCheat, videoUrl } = req.body;
 
-    if (!question || !answer && !videoUrl) {
+    // Parse antiCheat if it came as a string (from FormData)
+    if (typeof antiCheat === "string") {
+      try { antiCheat = JSON.parse(antiCheat); } catch { antiCheat = {}; }
+    }
+
+    if (!question || (!answer && !req.file)) {
       return res.status(400).json({ message: "Question and either an answer or a video is required" });
     }
 
-    // Pass anti-cheat metadata and video file to AI for multimodal analysis
-    const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoUrl);
+    // Get video buffer from multer (if uploaded)
+    const videoBuffer = req.file ? req.file.buffer : null;
+    const videoMimeType = req.file ? req.file.mimetype : "video/webm";
+
+    // Pass everything to the AI service
+    const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoBuffer, videoMimeType);
 
     // Build suspicious flags
     const suspiciousFlags = [];

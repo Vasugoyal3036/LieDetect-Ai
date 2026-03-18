@@ -1,64 +1,79 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { GoogleAIFileManager } = require("@google/generative-ai/server");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
+const os = require("os");
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
 const fileManager = new GoogleAIFileManager(API_KEY);
 
 const model = genai.getGenerativeModel({
-  model: "gemini-1.5-flash" // Best for fast multimodal analysis
+  model: "gemini-1.5-flash",
 });
 
 /**
- * Enhanced analysis that can handle text OR video/audio files
+ * Multimodal analysis — accepts text and/or a video buffer.
+ * @param {string} question
+ * @param {string} answer - typed answer (can be empty if video-only)
+ * @param {Object} antiCheat
+ * @param {Buffer|null} videoBuffer - raw video buffer from multer memoryStorage
+ * @param {string} videoMimeType - e.g. "video/webm"
  */
-async function analyzeAnswer(question, answer, antiCheat = {}, videoFilename = null) {
+async function analyzeAnswer(question, answer, antiCheat = {}, videoBuffer = null, videoMimeType = "video/webm") {
   try {
-    let promptContext = `Question: "${question}"\n`;
     let content = [];
+    let videoInstructions = "";
 
-    // 1. If we have a video, handle multimodal analysis
-    if (videoFilename) {
-      const filePath = path.join(__dirname, "../../uploads", videoFilename);
-      
-      if (fs.existsSync(filePath)) {
-        // Upload to Gemini File Manager
-        const uploadResult = await fileManager.uploadFile(filePath, {
-          mimeType: videoFilename.endsWith(".webm") ? "video/webm" : "video/mp4",
-          displayName: "Interview Session",
+    // ── 1. If we have a video buffer, upload it to Gemini ──
+    if (videoBuffer && videoBuffer.length > 0) {
+      // Write buffer to a temp file (GoogleAIFileManager needs a file path)
+      const tmpDir = os.tmpdir();
+      const ext = videoMimeType.includes("mp4") ? ".mp4" : ".webm";
+      const tmpFile = path.join(tmpDir, `liedetect-${Date.now()}${ext}`);
+      fs.writeFileSync(tmpFile, videoBuffer);
+
+      try {
+        const uploadResult = await fileManager.uploadFile(tmpFile, {
+          mimeType: videoMimeType,
+          displayName: "Interview Recording",
         });
 
-        // Wait for processing (Gemini needs a moment to 'watch' the file)
+        // Wait for Gemini to process the file
         let file = await fileManager.getFile(uploadResult.file.name);
-        while (file.state === "PROCESSING") {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+        let retries = 0;
+        while (file.state === "PROCESSING" && retries < 30) {
+          await new Promise((r) => setTimeout(r, 2000));
           file = await fileManager.getFile(uploadResult.file.name);
+          retries++;
         }
 
-        if (file.state === "FAILED") {
-          throw new Error("Video processing failed in Gemini");
-        }
+        if (file.state === "ACTIVE") {
+          content.push({
+            fileData: {
+              mimeType: file.mimeType,
+              fileUri: file.uri,
+            },
+          });
 
-        content.push({
-          fileData: {
-            mimeType: file.mimeType,
-            fileUri: file.uri,
-          },
-        });
-
-        promptContext += `
-ANALYZE THIS VIDEO RECORDING:
-1. **Transcription**: Transcribe the user's spoken answer accurately.
-2. **Tone & Behavior**: Analyze the user's voice and behavior. Do they sound rehearsed? Are there suspicious pauses? Do they sound like they are reading from a script or using an AI voice changer?
-3. **Compare**: Compare the spoken answer in this video with the provided text input (if any) for inconsistencies.
+          videoInstructions = `
+IMPORTANT — A VIDEO/AUDIO RECORDING IS ATTACHED. You MUST:
+1. **Transcribe**: Provide the full transcription of the spoken answer.
+2. **Voice Analysis**: Note if the voice sounds natural, nervous, monotone (AI-like), or if they appear to be reading from a screen.
+3. **Behavior**: If video shows face, note eye movement, reading behavior, or multiple people.
+4. **Cross-reference**: Compare the spoken words with the typed text (if any) for inconsistencies.
 `;
+        } else {
+          console.error("Gemini file processing failed. State:", file.state);
+        }
+      } finally {
+        // Clean up temp file
+        try { fs.unlinkSync(tmpFile); } catch (_) {}
       }
     }
 
-    // 2. Add Anti-Cheat Context
-    let antiCheatContext = '';
+    // ── 2. Build anti-cheat context ──
+    let antiCheatContext = "";
     if (antiCheat && Object.keys(antiCheat).length > 0) {
       const flags = [];
       if (antiCheat.tabSwitchCount > 0) flags.push(`User switched tabs ${antiCheat.tabSwitchCount} time(s)`);
@@ -67,46 +82,56 @@ ANALYZE THIS VIDEO RECORDING:
       if (antiCheat.timeSpentSeconds < 10) flags.push(`Response submitted in only ${antiCheat.timeSpentSeconds}s`);
 
       if (flags.length > 0) {
-        antiCheatContext = `\n**BEHAVIORAL RED FLAGS:**\n${flags.map(f => `- ${f}`).join('\n')}`;
+        antiCheatContext = `\n**BEHAVIORAL RED FLAGS:**\n${flags.map((f) => `- ${f}`).join("\n")}`;
       }
     }
 
+    // ── 3. Build the prompt ──
     const mainPrompt = `
-You are an advanced Interview Authenticity AI. Your goal is to detect fraud (AI generation, reading from scripts, or canned responses).
+You are an advanced Interview Authenticity AI. You detect fraud (AI-generated answers, reading from scripts, copy-paste, or canned responses).
 
-${promptContext}
-User Provided Text (if any): "${answer || 'N/A'}"
+Question: "${question}"
+User Typed Text: "${answer || "N/A"}"
+${videoInstructions}
 ${antiCheatContext}
 
-**SCORING CRITERIA:**
-- **Genuineness (0-100)**: 
-  - 80-100: Natural, stuttering is fine, personal anecdotes, specific details.
-  - 40-79: Rehearsed, generic, or slightly robotic.
-  - 0-39: Definitely AI generated, reading from a screen (eyes moving), or flat monotone AI voice.
+**GENUINENESS SCORING (0-100):**
+- 80-100: Natural, personal anecdotes, specific details, casual language. Stuttering and imperfections are GOOD.
+- 55-79: Mostly genuine but slightly rehearsed or generic.
+- 40-54: Suspicious — could be AI-assisted, heavily rehearsed, or reading from a script.
+- 0-39: Definitely AI-generated, flat monotone voice, or clearly reading from a screen.
 
-- **Answer Quality (0-100)**: Relevance and depth.
+**CRITICAL RULE:** Short, informal, or imperfect answers should score 55-75. Real humans don't write essays.
 
-**INSTRUCTIONS:**
-- If a video was provided, use the TRANSCRIPT you generated for the analysis.
-- If the user's eyes are clearly reading from a screen or if the voice sounds monotone/AI, drop the genuineness score significantly.
+**RISK LEVELS:**
+- "High" = Score below 40
+- "Medium" = Score 40-55
+- "Low" = Score above 55
 
-Return ONLY valid JSON:
+**ANSWER QUALITY SCORING (0-100):**
+- Relevance (0-25), Depth (0-25), Clarity (0-25), Impact (0-25)
+
+**SUGGESTED ANSWER:**
+If answerQualityScore < 75, provide a concise (3-5 sentence) model answer. Otherwise set to null.
+
+Return ONLY valid JSON, nothing else:
 {
-  "transcription": "<full transcription of the audio, if video provided>",
+  "transcription": "<full transcription of spoken answer if video was provided, otherwise null>",
   "genuinenessScore": <number>,
   "bluffRisk": "<Low|Medium|High>",
-  "feedback": "<detailed analysis of voice, behavior, and content>",
+  "feedback": "<detailed analysis explaining your reasoning>",
   "answerQualityScore": <number>,
-  "suggestedAnswer": "<improved version if quality is low, else null>"
+  "suggestedAnswer": "<model answer if quality < 75, otherwise null>"
 }
 `;
 
     content.push(mainPrompt);
 
+    // ── 4. Call Gemini ──
     const result = await model.generateContent(content);
     let text = result.response.text();
 
-    // Clean up JSON response
+    // Clean up JSON
     text = text.replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
@@ -115,18 +140,17 @@ Return ONLY valid JSON:
     }
 
     return JSON.parse(text);
-
   } catch (error) {
     console.error("Multimodal AI Service Error:", error);
     return {
       genuinenessScore: 50,
       bluffRisk: "Medium",
-      feedback: "AI analysis failed to process multimodal data. " + error.message,
-      transcription: "Unavailable",
-      answerQualityScore: 0
+      feedback: "AI analysis encountered an error: " + error.message,
+      transcription: null,
+      answerQualityScore: 0,
+      suggestedAnswer: null,
     };
   }
 }
 
 module.exports = analyzeAnswer;
-
