@@ -101,6 +101,7 @@ export default function Navbar() {
                 { label: 'Questions', icon: 'fas fa-folder-open', path: '/questions' },
                 { label: 'Reports', icon: 'fas fa-file-pdf', path: '/reports' },
                 { label: 'Team', icon: 'fas fa-users', path: '/team' },
+                { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
                 { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
               ].map(item => {
                 const active = isActive(item.path);
@@ -308,6 +309,7 @@ export default function Navbar() {
               { label: 'Questions', icon: 'fas fa-folder-open', path: '/questions' },
               { label: 'Reports', icon: 'fas fa-file-pdf', path: '/reports' },
               { label: 'Team', icon: 'fas fa-users', path: '/team' },
+              { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
               { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
             ].map(item => {
               const active = isActive(item.path);

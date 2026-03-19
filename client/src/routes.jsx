@@ -18,6 +18,8 @@ import Pricing from './pages/Pricing';
 import Team from './pages/Team';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import CandidateInvite from './pages/CandidateInvite';
+import Invites from './pages/Invites';
 
 export default function AppRoutes() {
   return (
@@ -31,6 +33,7 @@ export default function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/shared-report/:token" element={<SharedReport />} />
+      <Route path="/invite/:token" element={<CandidateInvite />} />
 
       {/* Protected */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -40,6 +43,7 @@ export default function AppRoutes() {
       <Route path="/questions" element={<ProtectedRoute><QuestionBank /></ProtectedRoute>} />
       <Route path="/reports" element={<ProtectedRoute><Report /></ProtectedRoute>} />
       <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
+      <Route path="/invites" element={<ProtectedRoute><Invites /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
 

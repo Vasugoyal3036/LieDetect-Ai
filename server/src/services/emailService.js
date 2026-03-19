@@ -171,11 +171,15 @@ const sendPasswordResetEmail = async (email, token, name) => {
 };
 
 // Send 2FA email
-const sendTwoFactorEmail = async (email, otp, name) => {
+// Send Candidate Interview Invitation
+const sendInterviewInviteEmail = async (email, candidateName, recruiterName, token) => {
+  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  const inviteLink = `${clientUrl}/invite/${token}`;
+
   const mailOptions = {
     from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Your 2FA Code - LieDetect AI",
+    subject: `Interview Invitation from ${recruiterName}`,
     html: `
     <!DOCTYPE html>
     <html>
@@ -191,22 +195,24 @@ const sendTwoFactorEmail = async (email, otp, name) => {
               <tr>
                 <td style="padding: 40px 40px 20px; text-align: center;">
                   <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981, #3b82f6); border-radius: 16px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
-                    <span style="font-size: 28px;">🔐</span>
+                    <span style="font-size: 28px;">📹</span>
                   </div>
-                  <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px; font-weight: 700;">Your 2FA Code</h1>
+                  <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px; font-weight: 700;">You're Invited!</h1>
                 </td>
               </tr>
               <tr>
                 <td style="padding: 20px 40px; text-align: center;">
                   <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1.6; margin: 0 0 32px;">
-                    Hi <strong style="color: #ffffff;">${name}</strong>,<br><br>
-                    Your two-factor authentication code is:
+                    Hi <strong style="color: #ffffff;">${candidateName}</strong>,<br><br>
+                    <strong>${recruiterName}</strong> has invited you to complete an asynchronous video interview powered by LieDetect AI.
+                    Please ensure you are in a quiet room with a working webcam and microphone.
                   </p>
-                  <div style="background: rgba(99, 102, 241, 0.15); border: 2px solid #6366f1; border-radius: 12px; padding: 24px; margin: 32px 0;">
-                    <p style="color: #6366f1; font-size: 36px; font-weight: 700; margin: 0; letter-spacing: 8px; font-family: 'Courier New', monospace;">${otp}</p>
-                  </div>
-                  <p style="color: rgba(255,255,255,0.4); font-size: 13px; margin: 0;">
-                    This code expires in 5 minutes. Never share this code with anyone.
+                  <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #10b981, #3b82f6); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 8px 25px rgba(16,185,129,0.4);">
+                    Start Interview
+                  </a>
+                  <p style="color: rgba(255,255,255,0.4); font-size: 13px; line-height: 1.6; margin: 32px 0 0;">
+                    Or visit this link directly:<br>
+                    <a href="${inviteLink}" style="color: #818cf8; text-decoration: underline; word-break: break-all;">${inviteLink}</a>
                   </p>
                 </td>
               </tr>
@@ -214,7 +220,7 @@ const sendTwoFactorEmail = async (email, otp, name) => {
                 <td style="padding: 20px 40px 40px;">
                   <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; text-align: center;">
                     <p style="color: rgba(255,255,255,0.25); font-size: 12px; margin: 0;">
-                      If you didn't request this code, ignore this email.
+                      LieDetect AI &bull; Smart Hiring Solutions
                     </p>
                   </div>
                 </td>
@@ -230,11 +236,11 @@ const sendTwoFactorEmail = async (email, otp, name) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log("✓ 2FA email sent to:", email);
+    console.log("✓ Interview invite email sent to:", email);
   } catch (error) {
-    console.error("Nodemailer 2FA error:", error);
+    console.error("Nodemailer invite error:", error);
     throw error;
   }
 };
 
-module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendTwoFactorEmail };
+module.exports = { sendVerificationEmail, sendPasswordResetEmail, sendTwoFactorEmail, sendInterviewInviteEmail };
