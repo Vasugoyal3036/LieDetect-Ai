@@ -129,6 +129,14 @@ exports.analyzeCandidateAnswer = async (req, res) => {
             if (antiCheat.pasteAttempts > 0) suspiciousFlags.push(`Paste attempted ${antiCheat.pasteAttempts} time(s)`);
         }
 
+        // Upload Video to Cloudinary
+        let uploadedVideoUrl = "";
+        if (videoBuffer) {
+            const { uploadVideoBuffer } = require("../services/cloudinaryService");
+            const url = await uploadVideoBuffer(videoBuffer);
+            if (url) uploadedVideoUrl = url;
+        }
+
         // Create Session assigned to the workspace owner, but tagged with candidate name
         const session = await Session.create({
             user: invite.workspaceId,
@@ -144,7 +152,7 @@ exports.analyzeCandidateAnswer = async (req, res) => {
             tabSwitchCount: antiCheat?.tabSwitchCount || 0,
             pasteAttempts: antiCheat?.pasteAttempts || 0,
             suspiciousFlags,
-            videoUrl: "", // File stream is ephemeral in this architecture
+            videoUrl: uploadedVideoUrl,
         });
 
         // Add to invite

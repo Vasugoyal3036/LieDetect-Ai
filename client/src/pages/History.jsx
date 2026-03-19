@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 
@@ -18,6 +18,7 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [viewType, setViewType] = useState('self'); // 'self' vs 'candidate'
+  const [expandedSession, setExpandedSession] = useState(null);
 
   useEffect(() => { fetchHistory(); }, []);
 
@@ -159,16 +160,22 @@ export default function History() {
                   {filteredSessions.map((s, idx) => {
                     const inviteMatch = invites.find(inv => inv.sessions.includes(s._id));
                     const candidateName = inviteMatch ? inviteMatch.candidateName : 'Unknown';
+                    const isExpanded = expandedSession === s._id;
                     
                     return (
-                        <tr key={s._id}
-                        style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'all 0.3s', animation: `fadeIn 0.5s ease-out ${idx * 0.04}s`, animationFillMode: 'both' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        <React.Fragment key={s._id}>
+                        <tr 
+                        onClick={() => setExpandedSession(isExpanded ? null : s._id)}
+                        style={{ borderBottom: isExpanded ? 'none' : '1px solid rgba(255,255,255,0.04)', transition: 'all 0.3s', animation: `fadeIn 0.5s ease-out ${idx * 0.04}s`, animationFillMode: 'both', cursor: 'pointer', background: isExpanded ? 'rgba(99,102,241,0.08)' : 'transparent' }}
+                        onMouseEnter={e => { if(!isExpanded) e.currentTarget.style.background = 'rgba(99,102,241,0.06)' }}
+                        onMouseLeave={e => { if(!isExpanded) e.currentTarget.style.background = 'transparent' }}
                         >
                         {viewType === 'candidate' && <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: '#fff', fontWeight: 600 }}>{candidateName}</td>}
                         
-                        <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>{s.question.substring(0, 35)}...</td>
+                        <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                            <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ marginRight: '0.5rem', color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}></i>
+                            {s.question.substring(0, 35)}...
+                        </td>
                         <td style={{ padding: '1rem 1.5rem', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)' }}>{s.answer.substring(0, 40)}...</td>
                         <td style={{ padding: '1rem 1.5rem' }}>
                             <span style={{ fontWeight: 700, color: '#818cf8', background: 'rgba(99,102,241,0.1)', padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.85rem' }}>{s.genuinenessScore}</span>
@@ -182,6 +189,63 @@ export default function History() {
                             }}>{s.bluffRisk}</span>
                         </td>
                         </tr>
+                        {isExpanded && (
+                            <tr style={{ background: 'rgba(15,15,30,0.4)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                <td colSpan={viewType === 'candidate' ? 5 : 4} style={{ padding: '1.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                                        {/* Video/Answer Block */}
+                                        <div>
+                                            <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Candidate Response</h4>
+                                            {s.videoUrl && s.videoUrl !== "" ? (
+                                                <div style={{ background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                                    <video src={s.videoUrl} controls style={{ width: '100%', maxHeight: '250px', display: 'block' }}></video>
+                                                </div>
+                                            ) : (
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <p style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', fontSize: '0.85rem', margin: 0 }}>
+                                                        <i className="fas fa-video-slash" style={{ marginRight: '0.5rem' }}></i> No video response was recorded for this session.
+                                                    </p>
+                                                </div>
+                                            )}
+                                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <h5 style={{ fontSize: '0.75rem', color: '#6366f1', marginBottom: '0.25rem', margin: 0 }}>Transcription / Text Answer</h5>
+                                                <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0, marginTop: '0.5rem' }}>{s.answer}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Feedback Block */}
+                                        <div>
+                                            <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>AI Feedback & Analysis</h4>
+                                            <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.05), rgba(139,92,246,0.05))', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.15)', marginBottom: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Content Quality</p>
+                                                        <p style={{ fontSize: '1.2rem', fontWeight: 800, color: '#34d399', margin: 0 }}>{s.answerQualityScore}/100</p>
+                                                    </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>Genuineness</p>
+                                                        <p style={{ fontSize: '1.2rem', fontWeight: 800, color: '#818cf8', margin: 0 }}>{s.genuinenessScore}/100</p>
+                                                    </div>
+                                                </div>
+                                                <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>{s.feedback}</p>
+                                            </div>
+
+                                            {s.suspiciousFlags && s.suspiciousFlags.length > 0 && (
+                                                <div style={{ background: 'rgba(239,68,68,0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                                    <h5 style={{ fontSize: '0.8rem', color: '#fca5a5', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                        <i className="fas fa-exclamation-triangle"></i> Security Flags
+                                                    </h5>
+                                                    <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
+                                                        {s.suspiciousFlags.map((flag, i) => <li key={i}>{flag}</li>)}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        )}
+                        </React.Fragment>
                     );
                   })}
                 </tbody>
@@ -190,32 +254,84 @@ export default function History() {
 
             {/* Mobile Cards */}
             <div className="history-mobile-cards" style={{ display: 'none', padding: '1rem', gap: '0.75rem', flexDirection: 'column' }}>
-              {filteredSessions.map((s, idx) => (
-                <div key={s._id} style={{
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-                  borderRadius: '12px', padding: '1rem',
-                  animation: `fadeIn 0.5s ease-out ${idx * 0.08}s`, animationFillMode: 'both',
-                }}>
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Question</p>
-                  <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '0.75rem' }}>{s.question}</p>
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Answer</p>
-                  <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>{s.answer.substring(0, 60)}...</p>
-                  <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 600 }}>Score</p>
-                      <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#818cf8' }}>{s.genuinenessScore}</p>
+              {filteredSessions.map((s, idx) => {
+                const inviteMatch = invites.find(inv => inv.sessions.includes(s._id));
+                const candidateName = inviteMatch ? inviteMatch.candidateName : 'Unknown';
+                const isExpanded = expandedSession === s._id;
+
+                return (
+                  <div key={s._id} onClick={() => setExpandedSession(isExpanded ? null : s._id)} style={{
+                    background: isExpanded ? 'rgba(99,102,241,0.08)' : 'rgba(255,255,255,0.03)', 
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '12px', padding: '1rem',
+                    animation: `fadeIn 0.5s ease-out ${idx * 0.08}s`, animationFillMode: 'both',
+                    cursor: 'pointer', transition: 'all 0.3s'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600, textTransform: 'uppercase' }}>{viewType === 'candidate' ? candidateName : 'Question'}</p>
+                      <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}></i>
                     </div>
-                    <div>
-                      <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.25rem' }}>Risk</p>
-                      <span style={{
-                        padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                        background: s.bluffRisk === 'Low' ? 'rgba(16,185,129,0.15)' : s.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                        color: s.bluffRisk === 'Low' ? '#6ee7b7' : s.bluffRisk === 'Medium' ? '#fbbf24' : '#fca5a5',
-                      }}>{s.bluffRisk}</span>
+                    
+                    <p style={{ fontSize: '0.9rem', fontWeight: 500, color: 'rgba(255,255,255,0.8)', marginBottom: '0.75rem' }}>{s.question}</p>
+                    {!isExpanded && (
+                      <>
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Answer Preview</p>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>{s.answer.substring(0, 60)}...</p>
+                      </>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                      <div>
+                        <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 600 }}>Score</p>
+                        <p style={{ fontSize: '1.5rem', fontWeight: 800, color: '#818cf8' }}>{s.genuinenessScore}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.25rem' }}>Risk</p>
+                        <span style={{
+                          padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                          background: s.bluffRisk === 'Low' ? 'rgba(16,185,129,0.15)' : s.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: s.bluffRisk === 'Low' ? '#6ee7b7' : s.bluffRisk === 'Medium' ? '#fbbf24' : '#fca5a5',
+                        }}>{s.bluffRisk}</span>
+                      </div>
                     </div>
+
+                    {isExpanded && (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                        <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Candidate Response</h4>
+                        {s.videoUrl && s.videoUrl !== "" ? (
+                            <div style={{ background: '#000', borderRadius: '12px', overflow: 'hidden', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <video src={s.videoUrl} controls style={{ width: '100%', maxHeight: '250px', display: 'block' }}></video>
+                            </div>
+                        ) : (
+                            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <p style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic', fontSize: '0.85rem', margin: 0 }}>
+                                    <i className="fas fa-video-slash" style={{ marginRight: '0.5rem' }}></i> No video response was recorded.
+                                </p>
+                            </div>
+                        )}
+                        <h5 style={{ fontSize: '0.75rem', color: '#6366f1', marginBottom: '0.25rem', margin: 0 }}>Transcription / Default Answer</h5>
+                        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0, marginTop: '0.5rem', marginBottom: '1rem' }}>{s.answer}</p>
+
+                        <h4 style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', marginBottom: '0.5rem', marginTop: '1rem' }}>AI Feedback</h4>
+                        <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.05), rgba(139,92,246,0.05))', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(99,102,241,0.15)' }}>
+                            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>{s.feedback}</p>
+                        </div>
+                        
+                        {s.suspiciousFlags && s.suspiciousFlags.length > 0 && (
+                            <div style={{ background: 'rgba(239,68,68,0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)', marginTop: '1rem' }}>
+                                <h5 style={{ fontSize: '0.8rem', color: '#fca5a5', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <i className="fas fa-exclamation-triangle"></i> Security Flags
+                                </h5>
+                                <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
+                                    {s.suspiciousFlags.map((flag, i) => <li key={i}>{flag}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

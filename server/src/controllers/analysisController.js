@@ -31,6 +31,14 @@ exports.analyze = async (req, res) => {
       if (antiCheat.timeSpentSeconds < 10) suspiciousFlags.push(`Very fast response: ${antiCheat.timeSpentSeconds}s`);
     }
 
+    // Upload Video to Cloudinary
+    let uploadedVideoUrl = videoUrl || "";
+    if (videoBuffer) {
+        const { uploadVideoBuffer } = require("../services/cloudinaryService");
+        const url = await uploadVideoBuffer(videoBuffer);
+        if (url) uploadedVideoUrl = url;
+    }
+
     const session = await Session.create({
       user: req.user._id,
       question,
@@ -47,7 +55,7 @@ exports.analyze = async (req, res) => {
       typingSpeed: antiCheat?.typingSpeed || 0,
       timeSpentSeconds: antiCheat?.timeSpentSeconds || 0,
       suspiciousFlags,
-      videoUrl: videoUrl || "",
+      videoUrl: uploadedVideoUrl,
     });
 
     res.json({

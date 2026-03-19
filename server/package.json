@@ -19,6 +19,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "crypto": "^1.0.1",
     "dotenv": "^16.6.1",
@@ -32,6 +33,7 @@
     "nodemailer": "^8.0.2",
     "pdfkit": "^0.17.2",
     "razorpay": "^2.9.6",
+    "streamifier": "^0.1.1",
     "uuid": "9.0.1"
   },
   "devDependencies": {
