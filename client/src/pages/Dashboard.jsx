@@ -329,6 +329,7 @@ export default function Dashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                    <th style={{ padding: '0.85rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Candidate</th>
                     <th style={{ padding: '0.85rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Question</th>
                     <th style={{ padding: '0.85rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Score</th>
                     <th style={{ padding: '0.85rem 1.5rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>Risk Level</th>
@@ -336,52 +337,58 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sessions.slice(0, 5).map((session, idx) => (
-                    <tr
-                      key={session._id}
-                      style={{
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
-                        transition: 'all 0.3s',
-                        animation: `fadeIn 0.5s ease-out ${idx * 0.05}s`,
-                        animationFillMode: 'both',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: 'rgba(255,255,255,0.75)' }}>{session.question.substring(0, 40)}...</td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{
-                          fontWeight: 700, color: '#818cf8',
-                          background: 'rgba(99,102,241,0.1)',
-                          padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.85rem',
-                        }}>{session.genuinenessScore}</span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <span style={{
-                          padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
-                          background: session.bluffRisk === 'Low' ? 'rgba(16,185,129,0.15)' : session.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                          color: session.bluffRisk === 'Low' ? '#6ee7b7' : session.bluffRisk === 'Medium' ? '#fbbf24' : '#fca5a5',
-                          border: `1px solid ${session.bluffRisk === 'Low' ? 'rgba(16,185,129,0.3)' : session.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                        }}>
-                          {session.bluffRisk}
-                        </span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <button
-                          onClick={() => navigate('/history')}
-                          style={{
-                            color: '#818cf8', fontWeight: 600, fontSize: '0.85rem',
-                            background: 'transparent', border: 'none', cursor: 'pointer',
-                            transition: 'all 0.3s',
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.color = '#a5b4fc'}
-                          onMouseLeave={e => e.currentTarget.style.color = '#818cf8'}
-                        >
-                          View <i className="fas fa-arrow-right" style={{ marginLeft: '0.3rem', fontSize: '0.7rem' }}></i>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {sessions.slice(0, 5).map((session, idx) => {
+                    const inviteMatch = invites.find(inv => inv.sessions.includes(session._id));
+                    const candidateName = inviteMatch ? inviteMatch.candidateName : (user?.name?.split(' ')[0] + ' (You)');
+                    
+                    return (
+                      <tr
+                        key={session._id}
+                        style={{
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          transition: 'all 0.3s',
+                          animation: `fadeIn 0.5s ease-out ${idx * 0.05}s`,
+                          animationFillMode: 'both',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: '#fff', fontWeight: 600 }}>{candidateName}</td>
+                        <td style={{ padding: '1rem 1.5rem', fontSize: '0.9rem', color: 'rgba(255,255,255,0.75)' }}>{session.question.substring(0, 40)}...</td>
+                        <td style={{ padding: '1rem 1.5rem' }}>
+                          <span style={{
+                            fontWeight: 700, color: '#818cf8',
+                            background: 'rgba(99,102,241,0.1)',
+                            padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.85rem',
+                          }}>{session.genuinenessScore}</span>
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem' }}>
+                          <span style={{
+                            padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700,
+                            background: session.bluffRisk === 'Low' ? 'rgba(16,185,129,0.15)' : session.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                            color: session.bluffRisk === 'Low' ? '#6ee7b7' : session.bluffRisk === 'Medium' ? '#fbbf24' : '#fca5a5',
+                            border: `1px solid ${session.bluffRisk === 'Low' ? 'rgba(16,185,129,0.3)' : session.bluffRisk === 'Medium' ? 'rgba(245,158,11,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                          }}>
+                            {session.bluffRisk}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem 1.5rem' }}>
+                          <button
+                            onClick={() => navigate('/history')}
+                            style={{
+                              color: '#818cf8', fontWeight: 600, fontSize: '0.85rem',
+                              background: 'transparent', border: 'none', cursor: 'pointer',
+                              transition: 'all 0.3s',
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.color = '#a5b4fc'}
+                            onMouseLeave={e => e.currentTarget.style.color = '#818cf8'}
+                          >
+                            View <i className="fas fa-arrow-right" style={{ marginLeft: '0.3rem', fontSize: '0.7rem' }}></i>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
