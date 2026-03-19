@@ -17,23 +17,28 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
+  const [invites, setInvites] = useState([]);
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [riskData, setRiskData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSessions();
+    fetchData();
   }, []);
 
-  const fetchSessions = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get('/history');
-      setSessions(response.data);
-      calculateStats(response.data);
-      prepareChartData(response.data);
+      const [historyRes, invitesRes] = await Promise.all([
+        axios.get('/history'),
+        axios.get('/invites').catch(() => ({ data: [] }))
+      ]);
+      setSessions(historyRes.data);
+      setInvites(invitesRes.data);
+      calculateStats(historyRes.data);
+      prepareChartData(historyRes.data);
     } catch (err) {
-      console.error('Failed to fetch sessions:', err);
+      console.error('Failed to fetch dashboard data:', err);
     } finally {
       setLoading(false);
     }
@@ -82,6 +87,15 @@ export default function Dashboard() {
   );
 
   const statCards = [
+    {
+      label: 'Candidate Invites',
+      value: invites.length,
+      sub: 'Links sent',
+      icon: 'fas fa-paper-plane',
+      gradient: 'linear-gradient(135deg, #ec4899, #f43f5e)',
+      glow: 'rgba(236,72,153,0.2)',
+      border: '#ec4899',
+    },
     {
       label: 'Total Interviews',
       value: stats?.totalSessions || 0,
