@@ -167,6 +167,22 @@ export default function Dashboard() {
             <i className="fas fa-plus"></i>
             New Interview
           </button>
+          <button
+            onClick={() => navigate('/simulator')}
+            style={{
+              background: 'linear-gradient(135deg, #10b981, #14b8a6)',
+              color: 'white', padding: '0.75rem 1.75rem', borderRadius: '12px',
+              fontWeight: 700, fontSize: '0.95rem', border: 'none',
+              boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              transition: 'all 0.3s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(16,185,129,0.4)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(16,185,129,0.3)'; }}
+          >
+            <i className="fas fa-robot"></i>
+            AI Simulator
+          </button>
         </div>
 
         {/* Stats Grid */}

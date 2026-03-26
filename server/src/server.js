@@ -74,6 +74,7 @@ app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/subscription", require("./routes/subscriptionRoutes"));
 app.use("/api/team", require("./routes/teamRoutes"));
 app.use("/api/invites", require("./routes/inviteRoutes"));
+app.use("/api/simulator", require("./routes/simulatorRoutes"));
 
 // Serve uploaded files
 const path = require("path");

@@ -20,6 +20,7 @@ import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
 import CandidateInvite from './pages/CandidateInvite';
 import Invites from './pages/Invites';
+import Simulator from './pages/Simulator';
 
 export default function AppRoutes() {
   return (
@@ -45,6 +46,7 @@ export default function AppRoutes() {
       <Route path="/team" element={<ProtectedRoute><Team /></ProtectedRoute>} />
       <Route path="/invites" element={<ProtectedRoute><Invites /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
       <Route path="/pricing" element={<ProtectedRoute><Pricing /></ProtectedRoute>} />
 
       {/* 404 */}

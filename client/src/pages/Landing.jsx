@@ -39,6 +39,12 @@ const features = [
         desc: 'Create tailored question banks for specific roles and industries with AI-assisted generation.',
         gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)',
     },
+    {
+        icon: 'fas fa-robot',
+        title: 'AI Interview Simulator',
+        desc: 'Practice with an AI interviewer that gives real-time coaching, follow-up questions, and performance scoring.',
+        gradient: 'linear-gradient(135deg, #14b8a6, #10b981)',
+    },
 ];
 
 const stats = [

@@ -102,6 +102,7 @@ export default function Navbar() {
                 { label: 'Reports', icon: 'fas fa-file-pdf', path: '/reports' },
                 { label: 'Team', icon: 'fas fa-users', path: '/team' },
                 { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
+                { label: 'Simulator', icon: 'fas fa-robot', path: '/simulator' },
                 { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
               ].map(item => {
                 const active = isActive(item.path);
@@ -310,6 +311,7 @@ export default function Navbar() {
               { label: 'Reports', icon: 'fas fa-file-pdf', path: '/reports' },
               { label: 'Team', icon: 'fas fa-users', path: '/team' },
               { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
+              { label: 'Simulator', icon: 'fas fa-robot', path: '/simulator' },
               { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
             ].map(item => {
               const active = isActive(item.path);
