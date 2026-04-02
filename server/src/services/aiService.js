@@ -30,7 +30,7 @@ async function analyzeAnswer(question, answer, antiCheat = {}, videoBuffer = nul
       // Write buffer to a temp file (GoogleAIFileManager needs a file path)
       const tmpDir = os.tmpdir();
       const ext = videoMimeType.includes("mp4") ? ".mp4" : ".webm";
-      const tmpFile = path.join(tmpDir, `liedetect-${Date.now()}${ext}`);
+      const tmpFile = path.join(tmpDir, `hiringsentry-${Date.now()}${ext}`);
       fs.writeFileSync(tmpFile, videoBuffer);
 
       try {

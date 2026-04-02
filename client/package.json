@@ -1,7 +1,7 @@
 {
-  "name": "liedetector-client",
+  "name": "hiringsentry-client",
   "version": "1.0.0",
-  "description": "Lie Detector Client Application",
+  "description": "HiringSentry Client Application",
   "type": "module",
   "scripts": {
     "dev": "vite",

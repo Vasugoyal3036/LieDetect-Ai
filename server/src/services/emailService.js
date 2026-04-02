@@ -31,9 +31,9 @@ const sendVerificationEmail = async (email, token, name) => {
   const verifyLink = `${clientUrl}/verify-email?token=${token}`;
 
   const mailOptions = {
-    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    from: `"HiringSentry" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Verify Your Email - LieDetect AI",
+    subject: "Verify Your Email - HiringSentry",
     html: `
     <!DOCTYPE html>
     <html>
@@ -52,7 +52,7 @@ const sendVerificationEmail = async (email, token, name) => {
                     <span style="font-size: 28px;">🛡️</span>
                   </div>
                   <h1 style="color: #ffffff; font-size: 24px; margin: 0 0 8px; font-weight: 700;">Complete Verification</h1>
-                  <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Welcome to LieDetect AI</p>
+                  <p style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">Welcome to HiringSentry</p>
                 </td>
               </tr>
               <tr>
@@ -74,7 +74,7 @@ const sendVerificationEmail = async (email, token, name) => {
                 <td style="padding: 20px 40px 40px;">
                   <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; text-align: center;">
                     <p style="color: rgba(255,255,255,0.25); font-size: 12px; margin: 0;">
-                      &copy; ${new Date().getFullYear()} LieDetect AI &bull; AI-Powered Interview Analysis
+                      &copy; ${new Date().getFullYear()} HiringSentry &bull; AI-Powered Interview Analysis
                     </p>
                     <p style="color: rgba(255,255,255,0.25); font-size: 12px; margin: 8px 0 0;">
                       If you didn't create an account, you can safely ignore this email.
@@ -106,9 +106,9 @@ const sendPasswordResetEmail = async (email, token, name) => {
   const resetLink = `${clientUrl}/reset-password?token=${token}`;
 
   const mailOptions = {
-    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    from: `"HiringSentry" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Reset Your Password - LieDetect AI",
+    subject: "Reset Your Password - HiringSentry",
     html: `
     <!DOCTYPE html>
     <html>
@@ -173,9 +173,9 @@ const sendPasswordResetEmail = async (email, token, name) => {
 // Send 2FA email
 const sendTwoFactorEmail = async (email, otp, name) => {
   const mailOptions = {
-    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    from: `"HiringSentry" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: "Your 2FA Code - LieDetect AI",
+    subject: "Your 2FA Code - HiringSentry",
     html: `
     <!DOCTYPE html>
     <html>
@@ -243,7 +243,7 @@ const sendInterviewInviteEmail = async (email, candidateName, recruiterName, tok
   const inviteLink = `${clientUrl}/invite/${token}`;
 
   const mailOptions = {
-    from: `"LieDetect AI" <${process.env.EMAIL_USER}>`,
+    from: `"HiringSentry" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: `Interview Invitation from ${recruiterName}`,
     html: `
@@ -270,7 +270,7 @@ const sendInterviewInviteEmail = async (email, candidateName, recruiterName, tok
                 <td style="padding: 20px 40px; text-align: center;">
                   <p style="color: rgba(255,255,255,0.7); font-size: 15px; line-height: 1.6; margin: 0 0 32px;">
                     Hi <strong style="color: #ffffff;">${candidateName}</strong>,<br><br>
-                    <strong>${recruiterName}</strong> has invited you to complete an asynchronous video interview powered by LieDetect AI.
+                    <strong>${recruiterName}</strong> has invited you to complete an asynchronous video interview powered by HiringSentry.
                     Please ensure you are in a quiet room with a working webcam and microphone.
                   </p>
                   <a href="${inviteLink}" style="display: inline-block; background: linear-gradient(135deg, #10b981, #3b82f6); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 8px 25px rgba(16,185,129,0.4);">
@@ -286,7 +286,7 @@ const sendInterviewInviteEmail = async (email, candidateName, recruiterName, tok
                 <td style="padding: 20px 40px 40px;">
                   <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; text-align: center;">
                     <p style="color: rgba(255,255,255,0.25); font-size: 12px; margin: 0;">
-                      LieDetect AI &bull; Smart Hiring Solutions
+                      HiringSentry &bull; Smart Hiring Solutions
                     </p>
                   </div>
                 </td>

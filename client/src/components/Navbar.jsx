@@ -85,7 +85,7 @@ export default function Navbar() {
                 background: 'linear-gradient(135deg, #818cf8, #8b5cf6)',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-              }}>LieDetect</span>
+              }}>HiringSentry</span>
               {plan !== 'free' && <span style={{ fontSize: '0.6rem', color: '#fbbf24', marginTop: '-2px', fontWeight: 700, letterSpacing: '3px' }}>{plan.toUpperCase()}</span>}
             </div>
           </div>

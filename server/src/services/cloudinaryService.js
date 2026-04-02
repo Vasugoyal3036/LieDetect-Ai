@@ -26,7 +26,7 @@ exports.uploadVideoBuffer = (buffer) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: 'video',
-        folder: 'liedetector/interviews',
+        folder: 'hiringsentry/interviews',
       },
       (error, result) => {
         if (error) {

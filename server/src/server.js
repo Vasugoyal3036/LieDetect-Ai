@@ -57,7 +57,7 @@ app.use(async (req, res, next) => {
 app.get("/", (req, res) => {
   res.json({
     status: "ok",
-    service: "LieDetect AI API",
+    service: "HiringSentry API",
     version: "1.0.0",
     timestamp: new Date().toISOString(),
   });
@@ -87,7 +87,7 @@ app.use(errorHandler);
 // Only listen when running locally (not on Vercel)
 if (process.env.VERCEL !== '1') {
   app.listen(PORT, () => {
-    console.log(`✅ LieDetect AI API running on port ${PORT}`);
+    console.log(`✅ HiringSentry API running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
   });
 }

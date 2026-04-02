@@ -1,4 +1,4 @@
-# LieDetect AI - Vercel Deployment Guide
+# HiringSentry - Vercel Deployment Guide
 
 ## Problem: Signup Failing on Vercel
 

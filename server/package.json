@@ -1,7 +1,7 @@
 {
-  "name": "liedetector-server",
+  "name": "hiringsentry-server",
   "version": "1.0.0",
-  "description": "Lie Detector Server API",
+  "description": "HiringSentry Server API",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -9,7 +9,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "lie-detection",
+    "hiring-intelligence",
     "api",
     "express",
     "mongodb"

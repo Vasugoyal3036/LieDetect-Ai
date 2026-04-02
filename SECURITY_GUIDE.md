@@ -54,7 +54,7 @@ Your app now has these limits:
 
 ### If Credentials Are Leaked:
 1. Go to https://myaccount.google.com/apppasswords
-2. Find the LieDetect AI app password
+2. Find the HiringSentry app password
 3. Delete it
 4. Generate a new one
 5. Update Vercel environment variables
@@ -147,7 +147,7 @@ CLIENT_URL=https://your-frontend-domain.vercel.app
 JWT_SECRET=your_random_32_character_string_here
 
 # Real MongoDB credentials (consider MongoDB Atlas)
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/liedetector
+MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/hiringsentry
 
 # Real email credentials
 EMAIL_USER=your_gmail@gmail.com

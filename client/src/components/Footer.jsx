@@ -35,7 +35,7 @@ export default function Footer() {
                                 fontSize: '1.1rem', fontWeight: 800,
                                 background: 'linear-gradient(135deg, #818cf8, #8b5cf6)',
                                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                            }}>LieDetect AI</span>
+                            }}>HiringSentry</span>
                         </div>
                         <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)', lineHeight: 1.7 }}>
                             AI-powered interview analysis platform for modern recruitment teams.
@@ -83,7 +83,7 @@ export default function Footer() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                             <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <i className="fas fa-envelope" style={{ color: '#6366f1', fontSize: '0.75rem' }}></i>
-                                support@liedetect.ai
+                                support@hiringsentry.com
                             </span>
                             <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <i className="fas fa-map-marker-alt" style={{ color: '#6366f1', fontSize: '0.75rem' }}></i>
@@ -124,7 +124,7 @@ export default function Footer() {
                     flexWrap: 'wrap', gap: '1rem',
                 }}>
                     <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.25)' }}>
-                        © {year} LieDetect AI. All rights reserved.
+                        © {year} HiringSentry. All rights reserved.
                     </p>
                     <div style={{ display: 'flex', gap: '1.5rem' }}>
                         {['Privacy Policy', 'Terms of Service', 'Security'].map(item => (
