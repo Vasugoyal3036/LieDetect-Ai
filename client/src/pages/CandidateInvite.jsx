@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from '../api/axios';
 import VideoRecorder from '../components/VideoRecorder';
+import { connectSocket, disconnectSocket, emitProctoringAlert } from '../utils/socket';
 
 const glassCard = {
   background: 'rgba(255,255,255,0.04)',
@@ -46,6 +47,8 @@ export default function CandidateInvite() {
       try {
         const res = await axios.get(`/invites/public/${token}`);
         setInviteDetails(res.data);
+        // Connect to proctoring socket if invite is valid
+        connectSocket(token);
       } catch (err) {
         setError(err.response?.data?.message || 'Invalid or expired invitation link.');
       } finally {
@@ -53,6 +56,10 @@ export default function CandidateInvite() {
       }
     };
     fetchInvite();
+
+    return () => {
+      disconnectSocket();
+    };
   }, [token]);
 
   // Anti-cheat tab detection
@@ -60,7 +67,13 @@ export default function CandidateInvite() {
     const handleVisibility = () => {
       if (document.hidden && interviewStarted && !interviewComplete) {
         setTabSwitchCount(prev => prev + 1);
-        triggerWarning('⚠️ Disconnecting from test window is prohibited. This will be flagged.', '#ef4444');
+        const msg = '⚠️ Disconnecting from test window is prohibited. This will be flagged.';
+        triggerWarning(msg, '#ef4444');
+        emitProctoringAlert(token, 'tab_switch', {
+          candidateName: inviteDetails?.candidateName,
+          count: tabSwitchCount + 1,
+          message: msg
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -83,7 +96,12 @@ export default function CandidateInvite() {
   const handlePaste = (e) => {
     e.preventDefault();
     setPasteAttempts(prev => prev + 1);
-    triggerWarning('🚫 Copy/Paste is disabled for this interview.', '#ef4444');
+    const msg = '🚫 Copy/Paste is disabled for this interview.';
+    triggerWarning(msg, '#ef4444');
+    emitProctoringAlert(token, 'paste_attempt', {
+      candidateName: inviteDetails?.candidateName,
+      message: msg
+    });
   };
 
   const startInterview = () => {

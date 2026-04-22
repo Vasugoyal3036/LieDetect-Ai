@@ -107,7 +107,7 @@ exports.getInviteByToken = async (req, res) => {
 // Analyze a single answer from a candidate (Public route mapped to a token)
 exports.analyzeCandidateAnswer = async (req, res) => {
     try {
-        const invite = await InterviewInvite.findOne({ token: req.params.token });
+        const invite = await InterviewInvite.findOne({ token: req.params.token }).populate("questionBankId");
         
         if (!invite) return res.status(404).json({ message: "Invalid invitation link." });
         if (invite.status === "Completed") return res.status(400).json({ message: "Interview already completed." });
@@ -120,13 +120,18 @@ exports.analyzeCandidateAnswer = async (req, res) => {
         const videoBuffer = req.file ? req.file.buffer : null;
         const videoMimeType = req.file ? req.file.mimetype : "video/webm";
 
-        // Analyze using Gemini
-        const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoBuffer, videoMimeType);
+        // Extract JD context from the question bank (if available)
+        const jd = invite.questionBankId?.jobDescription || "";
+        const role = invite.questionBankId?.jobRole || "";
+
+        // Analyze using Gemini (now with JD context)
+        const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoBuffer, videoMimeType, jd, role);
 
         const suspiciousFlags = [];
         if (antiCheat) {
             if (antiCheat.tabSwitchCount > 0) suspiciousFlags.push(`Tab switched ${antiCheat.tabSwitchCount} time(s)`);
             if (antiCheat.pasteAttempts > 0) suspiciousFlags.push(`Paste attempted ${antiCheat.pasteAttempts} time(s)`);
+            if (antiCheat.fullscreenExits > 0) suspiciousFlags.push(`Exited fullscreen ${antiCheat.fullscreenExits} time(s)`);
         }
 
         // Upload Video to Cloudinary
@@ -151,6 +156,7 @@ exports.analyzeCandidateAnswer = async (req, res) => {
             category: "Candidate Invite",
             tabSwitchCount: antiCheat?.tabSwitchCount || 0,
             pasteAttempts: antiCheat?.pasteAttempts || 0,
+            fullscreenExits: antiCheat?.fullscreenExits || 0,
             suspiciousFlags,
             videoUrl: uploadedVideoUrl,
         });
@@ -198,5 +204,80 @@ exports.completeInterview = async (req, res) => {
     } catch (error) {
         console.error("Complete interview error:", error);
         res.status(500).json({ message: "Failed to finalize interview." });
+    }
+};
+
+// --- BATCH CSV INVITE ---
+exports.batchCreateInvites = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "CSV file is required." });
+        }
+
+        const { questionBankId } = req.body;
+        const workspaceId = req.user.adminId || req.user._id;
+        const csvContent = req.file.buffer.toString("utf-8");
+        const lines = csvContent.split(/\r?\n/).filter(l => l.trim());
+
+        if (lines.length < 2) {
+            return res.status(400).json({ message: "CSV must have a header row and at least one candidate row." });
+        }
+
+        // Parse header to find name and email columns
+        const header = lines[0].toLowerCase().split(",").map(h => h.trim());
+        const nameIdx = header.findIndex(h => h.includes("name"));
+        const emailIdx = header.findIndex(h => h.includes("email"));
+
+        if (nameIdx === -1 || emailIdx === -1) {
+            return res.status(400).json({ message: "CSV must have 'name' and 'email' columns in the header." });
+        }
+
+        const results = { sent: 0, failed: 0, errors: [] };
+
+        for (let i = 1; i < lines.length; i++) {
+            const cols = lines[i].split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+            const candidateName = cols[nameIdx];
+            const candidateEmail = cols[emailIdx];
+
+            if (!candidateName || !candidateEmail) {
+                results.failed++;
+                results.errors.push(`Row ${i + 1}: Missing name or email`);
+                continue;
+            }
+
+            // Basic email validation
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail)) {
+                results.failed++;
+                results.errors.push(`Row ${i + 1}: Invalid email "${candidateEmail}"`);
+                continue;
+            }
+
+            try {
+                const token = crypto.randomBytes(32).toString("hex");
+                await InterviewInvite.create({
+                    recruiterId: req.user._id,
+                    workspaceId,
+                    candidateName,
+                    candidateEmail,
+                    questionBankId: questionBankId || null,
+                    token,
+                    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                });
+
+                await sendInterviewInviteEmail(candidateEmail, candidateName, req.user.name, token);
+                results.sent++;
+            } catch (err) {
+                results.failed++;
+                results.errors.push(`Row ${i + 1}: ${err.message}`);
+            }
+        }
+
+        res.json({
+            message: `Batch complete: ${results.sent} sent, ${results.failed} failed.`,
+            ...results,
+        });
+    } catch (error) {
+        console.error("Batch invite error:", error);
+        res.status(500).json({ message: "Batch invite failed.", error: error.message });
     }
 };

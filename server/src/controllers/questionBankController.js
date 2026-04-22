@@ -3,7 +3,7 @@ const QuestionBank = require("../models/QuestionBank");
 // Create a new question bank
 exports.create = async (req, res) => {
     try {
-        const { title, description, jobRole, questions, isPublic } = req.body;
+        const { title, description, jobRole, jobDescription, questions, isPublic } = req.body;
         if (!title || !questions || questions.length === 0) {
             return res.status(400).json({ message: "Title and at least one question are required" });
         }
@@ -12,6 +12,7 @@ exports.create = async (req, res) => {
             title,
             description,
             jobRole,
+            jobDescription,
             questions,
             isPublic,
         });
@@ -55,10 +56,11 @@ exports.update = async (req, res) => {
         if (bank.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({ message: "Access denied" });
         }
-        const { title, description, jobRole, questions, isPublic } = req.body;
+        const { title, description, jobRole, jobDescription, questions, isPublic } = req.body;
         bank.title = title || bank.title;
         bank.description = description !== undefined ? description : bank.description;
         bank.jobRole = jobRole !== undefined ? jobRole : bank.jobRole;
+        bank.jobDescription = jobDescription !== undefined ? jobDescription : bank.jobDescription;
         bank.questions = questions || bank.questions;
         bank.isPublic = isPublic !== undefined ? isPublic : bank.isPublic;
         await bank.save();

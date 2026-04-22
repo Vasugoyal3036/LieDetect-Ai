@@ -75,20 +75,66 @@ app.use("/api/subscription", require("./routes/subscriptionRoutes"));
 app.use("/api/team", require("./routes/teamRoutes"));
 app.use("/api/invites", require("./routes/inviteRoutes"));
 app.use("/api/simulator", require("./routes/simulatorRoutes"));
+app.use("/api/practice", require("./routes/practiceRoutes"));
+
+const path = require("path");
+const http = require("http");
+const { Server } = require("socket.io");
 
 // Serve uploaded files
-const path = require("path");
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Error handling
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Real-time Proctoring Logic
+io.on("connection", (socket) => {
+  console.log("🔌 User connected:", socket.id);
+
+  // Join a room for a specific interview session
+  socket.on("join_session", (sessionId) => {
+    socket.join(sessionId);
+    console.log(`👤 User joined session room: ${sessionId}`);
+  });
+
+  // Handle proctoring alerts
+  socket.on("proctoring_alert", (data) => {
+    const { sessionId, type, details } = data;
+    console.warn(`🛑 Proctoring Alert [${type}] in session ${sessionId}:`, details);
+    
+    // Broadcast to recruiters/admins in the same room (excluding sender)
+    socket.to(sessionId).emit("realtime_proctoring_update", {
+      type,
+      details,
+      timestamp: new Date().toISOString(),
+      socketId: socket.id
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("🔌 User disconnected:", socket.id);
+  });
+});
+
 // Only listen when running locally (not on Vercel)
 if (process.env.VERCEL !== '1') {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`✅ HiringSentry API running on port ${PORT}`);
     console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+    console.log(`🔌 WebSockets enabled`);
   });
 }
 

@@ -18,6 +18,10 @@ const questionBankSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
+    jobDescription: {
+        type: String,
+        default: "",
+    },
     questions: [{
         text: { type: String, required: true },
         category: { type: String, default: "general" },

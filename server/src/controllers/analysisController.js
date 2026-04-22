@@ -4,7 +4,7 @@ const analyzeAnswer = require("../services/aiService");
 exports.analyze = async (req, res) => {
   try {
     // When sent as multipart/form-data, JSON fields may come as strings
-    let { question, answer, category, antiCheat, videoUrl } = req.body;
+    let { question, answer, category, antiCheat, videoUrl, jobDescription, jobRole } = req.body;
 
     // Parse antiCheat if it came as a string (from FormData)
     if (typeof antiCheat === "string") {
@@ -19,8 +19,16 @@ exports.analyze = async (req, res) => {
     const videoBuffer = req.file ? req.file.buffer : null;
     const videoMimeType = req.file ? req.file.mimetype : "video/webm";
 
-    // Pass everything to the AI service
-    const aiResult = await analyzeAnswer(question, answer, antiCheat || {}, videoBuffer, videoMimeType);
+    // Pass everything to the AI service (now with JD context)
+    const aiResult = await analyzeAnswer(
+      question,
+      answer,
+      antiCheat || {},
+      videoBuffer,
+      videoMimeType,
+      jobDescription || "",
+      jobRole || ""
+    );
 
     // Build suspicious flags
     const suspiciousFlags = [];
@@ -29,6 +37,7 @@ exports.analyze = async (req, res) => {
       if (antiCheat.pasteAttempts > 0) suspiciousFlags.push(`Paste attempted ${antiCheat.pasteAttempts} time(s)`);
       if (antiCheat.typingSpeed > 600) suspiciousFlags.push(`Unusually fast typing: ${antiCheat.typingSpeed} CPM`);
       if (antiCheat.timeSpentSeconds < 10) suspiciousFlags.push(`Very fast response: ${antiCheat.timeSpentSeconds}s`);
+      if (antiCheat.fullscreenExits > 0) suspiciousFlags.push(`Exited fullscreen ${antiCheat.fullscreenExits} time(s)`);
     }
 
     // Upload Video to Cloudinary
@@ -54,6 +63,7 @@ exports.analyze = async (req, res) => {
       pasteAttempts: antiCheat?.pasteAttempts || 0,
       typingSpeed: antiCheat?.typingSpeed || 0,
       timeSpentSeconds: antiCheat?.timeSpentSeconds || 0,
+      fullscreenExits: antiCheat?.fullscreenExits || 0,
       suspiciousFlags,
       videoUrl: uploadedVideoUrl,
     });

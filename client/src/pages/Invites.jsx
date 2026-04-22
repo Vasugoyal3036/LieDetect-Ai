@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
+import socket, { connectSocket, disconnectSocket } from '../utils/socket';
 
 const glassCard = {
   background: 'rgba(255,255,255,0.04)',
@@ -21,6 +22,18 @@ export default function Invites() {
   const [candidateEmail, setCandidateEmail] = useState('');
   const [questionBankId, setQuestionBankId] = useState('');
   const [sending, setSending] = useState(false);
+
+  // Batch CSV State
+  const [showBatchForm, setShowBatchForm] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [batchQBId, setBatchQBId] = useState('');
+  const [batchSending, setBatchSending] = useState(false);
+  const [batchResult, setBatchResult] = useState(null);
+
+  // Live Proctoring State
+  const [liveAlerts, setLiveAlerts] = useState([]);
+  const [showLivePanel, setShowLivePanel] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,16 +44,40 @@ export default function Invites() {
     try {
       const [invitesRes, banksRes] = await Promise.all([
         axios.get('/invites'),
-        axios.get('/questions')
+        axios.get('/question-banks')
       ]);
       setInvites(invitesRes.data);
-      setBanks(banksRes.data.filter(b => b.isUserCreated));
+      setBanks(banksRes.data);
+
+      // Connect to pending invite rooms for live monitoring
+      invitesRes.data.forEach(invite => {
+        if (invite.status === 'Pending') {
+          connectSocket(invite.token);
+        }
+      });
     } catch (err) {
       console.error('Failed to fetch invites data:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleUpdate = (data) => {
+      setLiveAlerts(prev => [{
+        ...data,
+        id: Date.now() + Math.random(),
+        isNew: true
+      }, ...prev].slice(0, 50)); // Keep last 50 alerts
+      setShowLivePanel(true);
+    };
+
+    socket.on('realtime_proctoring_update', handleUpdate);
+    return () => {
+      socket.off('realtime_proctoring_update', handleUpdate);
+      disconnectSocket();
+    };
+  }, []);
 
   const handleCreateInvite = async (e) => {
     e.preventDefault();
@@ -62,6 +99,38 @@ export default function Invites() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleBatchUpload = async (e) => {
+    e.preventDefault();
+    if (!csvFile) return alert('Please select a CSV file first.');
+    setBatchSending(true);
+    setBatchResult(null);
+    try {
+      const formData = new FormData();
+      formData.append('csv', csvFile);
+      if (batchQBId) formData.append('questionBankId', batchQBId);
+      const res = await axios.post('/invites/batch', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+      });
+      setBatchResult(res.data);
+      setCsvFile(null);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Batch upload failed.');
+    } finally {
+      setBatchSending(false);
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const csv = 'name,email\nJohn Doe,john@example.com\nJane Smith,jane@example.com\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'invite_template.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleDelete = async (id) => {
@@ -96,19 +165,100 @@ export default function Invites() {
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.45)' }}>Send magic link interviews directly to candidates.</p>
           </div>
-          <button onClick={() => setShowForm(!showForm)} style={{
-            background: showForm ? 'rgba(239,68,68,0.15)' : 'linear-gradient(135deg, #10b981, #3b82f6)',
-            color: showForm ? '#fca5a5' : 'white', padding: '0.75rem 1.75rem', borderRadius: '12px',
-            fontWeight: 700, border: showForm ? '1px solid rgba(239,68,68,0.3)' : 'none',
-            boxShadow: showForm ? 'none' : '0 4px 15px rgba(16,185,129,0.3)',
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}>
-            <i className={showForm ? 'fas fa-times' : 'fas fa-paper-plane'}></i>
-            {showForm ? 'Cancel' : 'Send Invite'}
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={() => setShowLivePanel(!showLivePanel)} style={{
+              background: liveAlerts.some(a => a.isNew) ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)',
+              color: liveAlerts.some(a => a.isNew) ? '#ef4444' : 'rgba(255,255,255,0.6)',
+              padding: '0.75rem 1.25rem', borderRadius: '12px', fontWeight: 700,
+              border: liveAlerts.some(a => a.isNew) ? '1px solid rgba(239,68,68,0.4)' : '1px solid rgba(255,255,255,0.1)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem', position: 'relative'
+            }}>
+              <i className="fas fa-satellite-dish animate-pulse"></i>
+              Live Monitor
+              {liveAlerts.filter(a => a.isNew).length > 0 && (
+                <span style={{
+                  position: 'absolute', top: '-5px', right: '-5px', background: '#ef4444',
+                  color: 'white', borderRadius: '50%', width: '18px', height: '18px',
+                  fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {liveAlerts.filter(a => a.isNew).length}
+                </span>
+              )}
+            </button>
+            <button onClick={() => { setShowBatchForm(!showBatchForm); setShowForm(false); }} style={{
+              background: showBatchForm ? 'rgba(239,68,68,0.15)' : 'rgba(99,102,241,0.15)',
+              color: showBatchForm ? '#fca5a5' : '#818cf8', padding: '0.75rem 1.25rem', borderRadius: '12px',
+              fontWeight: 700, border: showBatchForm ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(99,102,241,0.3)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}>
+              <i className={showBatchForm ? 'fas fa-times' : 'fas fa-file-csv'}></i>
+              {showBatchForm ? 'Cancel' : 'Batch CSV'}
+            </button>
+            <button onClick={() => { setShowForm(!showForm); setShowBatchForm(false); }} style={{
+              background: showForm ? 'rgba(239,68,68,0.15)' : 'linear-gradient(135deg, #10b981, #3b82f6)',
+              color: showForm ? '#fca5a5' : 'white', padding: '0.75rem 1.75rem', borderRadius: '12px',
+              fontWeight: 700, border: showForm ? '1px solid rgba(239,68,68,0.3)' : 'none',
+              boxShadow: showForm ? 'none' : '0 4px 15px rgba(16,185,129,0.3)',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}>
+              <i className={showForm ? 'fas fa-times' : 'fas fa-paper-plane'}></i>
+              {showForm ? 'Cancel' : 'Send Invite'}
+            </button>
+          </div>
         </div>
 
-        {/* Invite Form */}
+        {/* Live Proctoring Panel */}
+        {showLivePanel && (
+          <div style={{
+            ...glassCard, padding: '1.5rem', marginBottom: '2rem',
+            borderLeft: '4px solid #ef4444', background: 'rgba(239,68,68,0.02)'
+          }} className="animate-slide-in-up">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <i className="fas fa-shield-alt"></i> Real-time Proctoring Alerts
+              </h2>
+              <button onClick={() => {
+                setLiveAlerts(prev => prev.map(a => ({ ...a, isNew: false })));
+                setShowLivePanel(false);
+              }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {liveAlerts.length === 0 ? (
+                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem' }}>
+                  No live activity detected yet.
+                </p>
+              ) : (
+                liveAlerts.map(alert => (
+                  <div key={alert.id} style={{
+                    padding: '1rem', borderRadius: '10px',
+                    background: alert.isNew ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.02)',
+                    border: `1px solid ${alert.isNew ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.05)'}`,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                  }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <span style={{ color: '#f1f5f9', fontWeight: 700, fontSize: '0.9rem' }}>{alert.details.candidateName}</span>
+                        <span style={{
+                          fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
+                          background: 'rgba(239,68,68,0.2)', color: '#fca5a5', fontWeight: 800, textTransform: 'uppercase'
+                        }}>{alert.type.replace('_', ' ')}</span>
+                      </div>
+                      <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', margin: 0 }}>{alert.details.message}</p>
+                    </div>
+                    <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.7rem' }}>
+                      {new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Single Invite Form */}
         {showForm && (
           <div style={{ ...glassCard, padding: '2rem', marginBottom: '2rem' }} className="animate-slide-in-up">
             <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: '1.25rem' }}>
@@ -127,9 +277,6 @@ export default function Invites() {
                   <option value="">Default General Interview Questions</option>
                   {banks.map(b => <option key={b._id} value={b._id}>{b.title} ({b.questions.length} Qs)</option>)}
                 </select>
-                <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'rgba(255,255,255,0.4)' }}>
-                    Selecting a specific question bank limits the interview to those questions only.
-                </p>
               </div>
 
               <div style={{ gridColumn: '1 / -1', marginTop: '0.5rem' }}>
@@ -137,6 +284,97 @@ export default function Invites() {
                   {sending ? 'Sending Invite Email...' : 'Generate & Send Interview Link'}
                 </button>
               </div>
+            </form>
+          </div>
+        )}
+
+        {/* Batch CSV Form */}
+        {showBatchForm && (
+          <div style={{ ...glassCard, padding: '2rem', marginBottom: '2rem' }} className="animate-slide-in-up">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <i className="fas fa-file-csv" style={{ color: '#10b981' }}></i> Batch CSV Import
+              </h2>
+              <button type="button" onClick={downloadCsvTemplate} style={{
+                background: 'rgba(99,102,241,0.12)', color: '#818cf8', padding: '0.5rem 1rem',
+                borderRadius: '8px', fontWeight: 600, fontSize: '0.8rem', border: '1px solid rgba(99,102,241,0.2)',
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+              }}>
+                <i className="fas fa-download"></i> Download Template
+              </button>
+            </div>
+            <form onSubmit={handleBatchUpload} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{
+                border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '12px',
+                padding: '2rem', textAlign: 'center', cursor: 'pointer',
+                background: csvFile ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
+                transition: 'all 0.3s',
+              }}
+                onClick={() => document.getElementById('csv-upload').click()}
+              >
+                <input id="csv-upload" type="file" accept=".csv" style={{ display: 'none' }}
+                  onChange={e => setCsvFile(e.target.files[0])} />
+                {csvFile ? (
+                  <div>
+                    <i className="fas fa-file-csv" style={{ fontSize: '2rem', color: '#10b981', marginBottom: '0.5rem' }}></i>
+                    <p style={{ color: '#6ee7b7', fontWeight: 600 }}>{csvFile.name}</p>
+                    <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.8rem' }}>{(csvFile.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                ) : (
+                  <div>
+                    <i className="fas fa-cloud-upload-alt" style={{ fontSize: '2.5rem', color: 'rgba(255,255,255,0.2)', marginBottom: '0.75rem' }}></i>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>Click to upload CSV file</p>
+                    <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                      CSV must have <strong>name</strong> and <strong>email</strong> columns
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <select value={batchQBId} onChange={e => setBatchQBId(e.target.value)}
+                style={{ width: '100%', padding: '0.75rem 1rem', background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', color: '#f1f5f9' }}>
+                <option value="">Default General Interview Questions</option>
+                {banks.map(b => <option key={b._id} value={b._id}>{b.title} ({b.questions.length} Qs)</option>)}
+              </select>
+
+              <button type="submit" disabled={batchSending || !csvFile} style={{
+                width: '100%', padding: '1rem', borderRadius: '10px',
+                background: batchSending || !csvFile ? 'rgba(255,255,255,0.1)' : 'linear-gradient(135deg, #10b981, #3b82f6)',
+                color: batchSending || !csvFile ? 'rgba(255,255,255,0.4)' : 'white',
+                fontWeight: 'bold', border: 'none', transition: 'all 0.3s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              }}>
+                {batchSending ? (
+                  <><span style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block' }} className="animate-spin"></span> Sending invites...</>
+                ) : (
+                  <><i className="fas fa-paper-plane"></i> Send Batch Invites</>
+                )}
+              </button>
+
+              {batchResult && (
+                <div style={{
+                  background: batchResult.failed > 0 ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)',
+                  border: `1px solid ${batchResult.failed > 0 ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)'}`,
+                  borderRadius: '12px', padding: '1.25rem',
+                }}>
+                  <p style={{ fontWeight: 700, color: '#6ee7b7', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <i className="fas fa-check-circle"></i> {batchResult.message}
+                  </p>
+                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                    <span style={{ color: '#6ee7b7' }}><i className="fas fa-check" style={{ marginRight: '0.3rem' }}></i> {batchResult.sent} sent</span>
+                    {batchResult.failed > 0 && <span style={{ color: '#fca5a5' }}><i className="fas fa-times" style={{ marginRight: '0.3rem' }}></i> {batchResult.failed} failed</span>}
+                  </div>
+                  {batchResult.errors?.length > 0 && (
+                    <div style={{ marginTop: '0.75rem', maxHeight: '120px', overflow: 'auto' }}>
+                      {batchResult.errors.map((e, i) => (
+                        <p key={i} style={{ fontSize: '0.8rem', color: '#fca5a5', marginBottom: '0.25rem' }}>
+                          <i className="fas fa-exclamation-triangle" style={{ marginRight: '0.3rem', fontSize: '0.7rem' }}></i> {e}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
           </div>
         )}

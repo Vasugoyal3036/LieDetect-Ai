@@ -38,7 +38,7 @@ export default function Navbar() {
             stored.profilePicture = res.data.profilePicture;
             localStorage.setItem('user', JSON.stringify(stored));
           }
-        }).catch(() => {});
+        }).catch(() => { });
       }
     }
   }, [user]);
@@ -103,6 +103,7 @@ export default function Navbar() {
                 { label: 'Team', icon: 'fas fa-users', path: '/team' },
                 { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
                 { label: 'Simulator', icon: 'fas fa-robot', path: '/simulator' },
+                { label: 'Practice', icon: 'fas fa-flask', path: '/practice' },
                 { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
               ].map(item => {
                 const active = isActive(item.path);
@@ -148,7 +149,7 @@ export default function Navbar() {
               <>
                 <div style={{ position: 'relative' }} ref={dropdownRef}>
                   {/* User badge with profile picture */}
-                  <div 
+                  <div
                     onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -158,10 +159,10 @@ export default function Navbar() {
                       cursor: 'pointer', transition: 'all 0.3s',
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.25)'; }}
-                    onMouseLeave={e => { 
+                    onMouseLeave={e => {
                       if (!profileDropdownOpen) {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; 
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; 
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
                       }
                     }}
                   >
@@ -182,7 +183,7 @@ export default function Navbar() {
                     <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 600, fontSize: '0.8rem' }} className="nav-desktop">{user.name}</span>
                     <i className={`fas fa-chevron-down nav-desktop`} style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.4)', transition: 'transform 0.3s', transform: profileDropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }}></i>
                   </div>
-                  
+
                   {/* Dropdown Menu */}
                   {profileDropdownOpen && (
                     <div className="animate-fade-in" style={{
@@ -312,6 +313,7 @@ export default function Navbar() {
               { label: 'Team', icon: 'fas fa-users', path: '/team' },
               { label: 'Invites', icon: 'fas fa-envelope-open-text', path: '/invites' },
               { label: 'Simulator', icon: 'fas fa-robot', path: '/simulator' },
+              { label: 'Practice', icon: 'fas fa-flask', path: '/practice' },
               { label: 'Pricing', icon: 'fas fa-crown', path: '/pricing' },
             ].map(item => {
               const active = isActive(item.path);

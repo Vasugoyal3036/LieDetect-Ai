@@ -32,6 +32,7 @@ export default function QuestionBank() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [jobRole, setJobRole] = useState('');
+    const [jobDescription, setJobDescription] = useState('');
     const [isPublic, setIsPublic] = useState(false);
     const [questions, setQuestions] = useState([{ text: '', category: 'general' }]);
 
@@ -49,7 +50,7 @@ export default function QuestionBank() {
     };
 
     const resetForm = () => {
-        setTitle(''); setDescription(''); setJobRole(''); setIsPublic(false);
+        setTitle(''); setDescription(''); setJobRole(''); setJobDescription(''); setIsPublic(false);
         setQuestions([{ text: '', category: 'general' }]);
         setEditingBank(null); setShowForm(false);
     };
@@ -58,6 +59,7 @@ export default function QuestionBank() {
         setTitle(bank.title);
         setDescription(bank.description);
         setJobRole(bank.jobRole);
+        setJobDescription(bank.jobDescription || '');
         setIsPublic(bank.isPublic);
         setQuestions(bank.questions.map(q => ({ text: q.text, category: q.category })));
         setEditingBank(bank);
@@ -72,7 +74,7 @@ export default function QuestionBank() {
             return;
         }
         try {
-            const data = { title, description, jobRole, isPublic, questions: validQuestions };
+            const data = { title, description, jobRole, jobDescription, isPublic, questions: validQuestions };
             if (editingBank) {
                 await axios.put(`/question-banks/${editingBank._id}`, data);
             } else {
@@ -174,7 +176,20 @@ export default function QuestionBank() {
                                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
                                     <i className="fas fa-align-left" style={{ marginRight: '0.4rem', color: '#6366f1' }}></i> Description
                                 </label>
-                                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Describe the job requirements so AI can evaluate relevance..." style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} onFocus={handleFocus} onBlur={handleBlur} />
+                                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="A short description for your reference..." style={{ ...inputStyle, resize: 'vertical', minHeight: '80px' }} onFocus={handleFocus} onBlur={handleBlur} />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '0.5rem' }}>
+                                    <i className="fas fa-file-alt" style={{ marginRight: '0.4rem', color: '#10b981' }}></i> Job Description (JD)
+                                    <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginLeft: '0.5rem', fontWeight: 400 }}>AI uses this for role-specific scoring</span>
+                                </label>
+                                <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Paste the full job description here... The AI will evaluate answers against this JD to check if candidates demonstrate the skills and experience required for this specific role." style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }} onFocus={handleFocus} onBlur={handleBlur} />
+                                {jobDescription && (
+                                    <p style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#6ee7b7', fontWeight: 500 }}>
+                                        <i className="fas fa-check-circle" style={{ marginRight: '0.3rem' }}></i>
+                                        JD attached — AI will evaluate answers for role-specific relevance
+                                    </p>
+                                )}
                             </div>
 
                             {/* Questions */}

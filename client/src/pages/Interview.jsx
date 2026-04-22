@@ -43,6 +43,7 @@ export default function Interview() {
   const [keystrokeCount, setKeystrokeCount] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [showWarning, setShowWarning] = useState(null);
+  const [fullscreenExits, setFullscreenExits] = useState(0);
   const warningTimeout = useRef(null);
 
   // ── Video State ──
@@ -80,11 +81,44 @@ export default function Interview() {
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [interviewStarted, result]);
 
+  // ── Fullscreen enforcement ──
+  useEffect(() => {
+    if (!interviewStarted) return;
+
+    const enterFullscreen = () => {
+      const el = document.documentElement;
+      if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+      else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    };
+
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        setFullscreenExits(prev => prev + 1);
+        triggerWarning('⚠️ You exited fullscreen! This is logged as suspicious activity.', '#ef4444');
+        // Re-request fullscreen after a short delay
+        setTimeout(enterFullscreen, 500);
+      }
+    };
+
+    enterFullscreen();
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      // Exit fullscreen when leaving interview
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    };
+  }, [interviewStarted]);
+
   // ── Reset anti-cheat on new question ──
   useEffect(() => {
     setTabSwitchCount(0);
     setPasteAttempts(0);
     setKeystrokeCount(0);
+    setFullscreenExits(0);
     setQuestionStartTime(Date.now());
   }, [currentQuestionIndex]);
 
@@ -155,7 +189,11 @@ export default function Interview() {
       formData.append('question', currentQuestion);
       formData.append('answer', answer);
       formData.append('category', selectedBank?.title || 'interview');
-      formData.append('antiCheat', JSON.stringify({ tabSwitchCount, pasteAttempts, typingSpeed, timeSpentSeconds: timeSpent }));
+      formData.append('antiCheat', JSON.stringify({ tabSwitchCount, pasteAttempts, typingSpeed, timeSpentSeconds: timeSpent, fullscreenExits }));
+
+      // Forward JD context if available
+      if (selectedBank?.jobDescription) formData.append('jobDescription', selectedBank.jobDescription);
+      if (selectedBank?.jobRole) formData.append('jobRole', selectedBank.jobRole);
 
       if (finalVideoBlob) {
         formData.append('video', finalVideoBlob, 'recording.webm');
@@ -225,6 +263,9 @@ export default function Interview() {
       </span>
       <span style={{ color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
         <i className="fas fa-keyboard"></i> Keys: {keystrokeCount}
+      </span>
+      <span style={{ color: fullscreenExits > 0 ? '#fca5a5' : 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+        <i className="fas fa-expand"></i> FS Exits: {fullscreenExits}
       </span>
     </div>
   );

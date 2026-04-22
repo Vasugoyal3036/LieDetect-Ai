@@ -59,6 +59,10 @@ const sessionSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  fullscreenExits: {
+    type: Number,
+    default: 0,
+  },
   suspiciousFlags: [{
     type: String,
   }],
