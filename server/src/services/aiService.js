@@ -9,9 +9,8 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
 const fileManager = new GoogleAIFileManager(API_KEY);
 
-const model = genai.getGenerativeModel({
-  model: "gemini-2.5-flash",
-});
+// Fallback model chain — try in order if previous model is overloaded
+const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
 /**
  * Multimodal analysis — accepts text and/or a video buffer.
@@ -148,11 +147,25 @@ Return ONLY valid JSON, nothing else:
 
     content.push(mainPrompt);
 
-    // ── 5. Call Gemini (with retry for transient errors) ──
-    const result = await retryWithBackoff(
-      () => model.generateContent(content),
-      { maxRetries: 3, baseDelay: 2000, label: "Gemini analyzeAnswer" }
-    );
+    // ── 5. Call Gemini with fallback model chain ──
+    let result;
+    for (const modelName of MODEL_CHAIN) {
+      try {
+        const currentModel = genai.getGenerativeModel({ model: modelName });
+        result = await retryWithBackoff(
+          () => currentModel.generateContent(content),
+          { maxRetries: 2, baseDelay: 2000, label: `Gemini analyzeAnswer (${modelName})` }
+        );
+        console.log(`[AI Service] Success with model: ${modelName}`);
+        break; // Success — stop trying other models
+      } catch (modelError) {
+        console.warn(`[AI Service] Model ${modelName} failed: ${modelError.message}`);
+        if (modelName === MODEL_CHAIN[MODEL_CHAIN.length - 1]) {
+          throw modelError; // Last model also failed — rethrow
+        }
+        console.log(`[AI Service] Falling back to next model...`);
+      }
+    }
     let text = result.response.text();
 
     // Clean up JSON

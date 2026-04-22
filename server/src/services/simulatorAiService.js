@@ -4,9 +4,31 @@ const { retryWithBackoff } = require("../utils/retryWithBackoff");
 const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
 
-const model = genai.getGenerativeModel({
-  model: "gemini-2.5-flash",
-});
+// Fallback model chain — try in order if previous model is overloaded
+const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+
+/**
+ * Try generating content with fallback model chain
+ */
+async function generateWithFallback(prompt, label) {
+  for (const modelName of MODEL_CHAIN) {
+    try {
+      const currentModel = genai.getGenerativeModel({ model: modelName });
+      const result = await retryWithBackoff(
+        () => currentModel.generateContent(prompt),
+        { maxRetries: 2, baseDelay: 2000, label: `${label} (${modelName})` }
+      );
+      console.log(`[Simulator AI] Success with model: ${modelName}`);
+      return result;
+    } catch (modelError) {
+      console.warn(`[Simulator AI] Model ${modelName} failed: ${modelError.message}`);
+      if (modelName === MODEL_CHAIN[MODEL_CHAIN.length - 1]) {
+        throw modelError; // Last model also failed — rethrow
+      }
+      console.log(`[Simulator AI] Falling back to next model...`);
+    }
+  }
+}
 
 /**
  * Generate the first interview question based on job role, difficulty, and type
@@ -29,10 +51,7 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await retryWithBackoff(
-      () => model.generateContent(prompt),
-      { maxRetries: 3, baseDelay: 2000, label: "Simulator firstQuestion" }
-    );
+    const result = await generateWithFallback(prompt, "Simulator firstQuestion");
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
@@ -99,10 +118,7 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await retryWithBackoff(
-      () => model.generateContent(prompt),
-      { maxRetries: 3, baseDelay: 2000, label: "Simulator analyzeAndContinue" }
-    );
+    const result = await generateWithFallback(prompt, "Simulator analyzeAndContinue");
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
@@ -151,10 +167,7 @@ Provide an overall assessment. Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await retryWithBackoff(
-      () => model.generateContent(prompt),
-      { maxRetries: 3, baseDelay: 2000, label: "Simulator sessionSummary" }
-    );
+    const result = await generateWithFallback(prompt, "Simulator sessionSummary");
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
