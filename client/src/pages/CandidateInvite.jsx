@@ -66,19 +66,25 @@ export default function CandidateInvite() {
   useEffect(() => {
     const handleVisibility = () => {
       if (document.hidden && interviewStarted && !interviewComplete) {
-        setTabSwitchCount(prev => prev + 1);
-        const msg = '⚠️ Disconnecting from test window is prohibited. This will be flagged.';
-        triggerWarning(msg, '#ef4444');
-        emitProctoringAlert(token, 'tab_switch', {
-          candidateName: inviteDetails?.candidateName,
-          count: tabSwitchCount + 1,
-          message: msg
+        setTabSwitchCount(prev => {
+          const newCount = prev + 1;
+          const msg = '⚠️ Disconnecting from test window is prohibited. This will be flagged.';
+          triggerWarning(msg, '#ef4444');
+          
+          console.log(`📡 [Socket] Emitting tab_switch alert for session ${token}. New count: ${newCount}`);
+          emitProctoringAlert(token, 'tab_switch', {
+            candidateName: inviteDetails?.candidateName || 'Candidate',
+            count: newCount,
+            message: msg
+          });
+          
+          return newCount;
         });
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [interviewStarted, interviewComplete]);
+  }, [interviewStarted, interviewComplete, token, inviteDetails]);
 
   // Reset metrics per question
   useEffect(() => {
@@ -95,12 +101,18 @@ export default function CandidateInvite() {
 
   const handlePaste = (e) => {
     e.preventDefault();
-    setPasteAttempts(prev => prev + 1);
-    const msg = '🚫 Copy/Paste is disabled for this interview.';
-    triggerWarning(msg, '#ef4444');
-    emitProctoringAlert(token, 'paste_attempt', {
-      candidateName: inviteDetails?.candidateName,
-      message: msg
+    setPasteAttempts(prev => {
+      const newCount = prev + 1;
+      const msg = '🚫 Copy/Paste is disabled for this interview.';
+      triggerWarning(msg, '#ef4444');
+      
+      console.log(`📡 [Socket] Emitting paste_attempt alert for session ${token}`);
+      emitProctoringAlert(token, 'paste_attempt', {
+        candidateName: inviteDetails?.candidateName || 'Candidate',
+        message: msg
+      });
+      
+      return newCount;
     });
   };
 

@@ -64,6 +64,7 @@ export default function Invites() {
 
   useEffect(() => {
     const handleUpdate = (data) => {
+      console.log('📡 [Socket] Received real-time proctoring update:', data);
       setLiveAlerts(prev => [{
         ...data,
         id: Date.now() + Math.random(),
