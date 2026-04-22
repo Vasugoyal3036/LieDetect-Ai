@@ -135,7 +135,7 @@ export default function Pricing() {
                 key: res.data.keyId,
                 amount: res.data.amount,
                 currency: res.data.currency,
-                name: 'LieDetect AI',
+                name: 'HiringSentry',
                 description: `${planId.charAt(0).toUpperCase() + planId.slice(1)} Plan Subscription`,
                 order_id: res.data.orderId,
                 handler: async function (response) {

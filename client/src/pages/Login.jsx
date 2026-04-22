@@ -131,7 +131,7 @@ export default function Login() {
             background: 'linear-gradient(135deg, #818cf8, #8b5cf6, #ec4899)',
             WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
           }}>
-            LieDetect AI
+            HiringSentry
           </h1>
           <p style={{ fontSize: '1.15rem', color: 'rgba(255,255,255,0.6)', fontWeight: 500, marginBottom: '0.5rem' }}>Professional Interview Analysis</p>
           <p style={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.8, marginBottom: '2rem' }}>
@@ -178,7 +178,7 @@ export default function Login() {
                 <i className="fas fa-shield-alt"></i>
               </div>
               <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>Welcome Back</h2>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Sign in to access your interview analysis</p>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Sign in to access HiringSentry interview analysis</p>
             </div>
 
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

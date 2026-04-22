@@ -114,7 +114,7 @@ export default function Signup() {
               <i className="fas fa-user-plus"></i>
             </div>
             <h2 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#fff', marginBottom: '0.5rem' }}>Create Account</h2>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Join LieDetect AI for powerful interview analysis</p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem' }}>Join HiringSentry for powerful AI-proctored interview analysis</p>
           </div>
 
           <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

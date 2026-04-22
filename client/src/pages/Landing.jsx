@@ -140,7 +140,7 @@ export default function Landing() {
                         margin: '0 auto 2.5rem',
                         lineHeight: 1.7,
                     }} className="animate-fade-in">
-                        AI-powered interview analysis platform that detects deception patterns, monitors anti-cheat behavior, and delivers actionable hiring intelligence — in real time.
+                        HiringSentry is an AI-powered interview analysis platform that detects deception patterns, monitors anti-cheat behavior, and delivers actionable hiring intelligence — in real time.
                     </p>
 
                     {/* CTA Buttons */}
