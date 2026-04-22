@@ -1,4 +1,5 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { retryWithBackoff } = require("../utils/retryWithBackoff");
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
@@ -28,7 +29,10 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await retryWithBackoff(
+      () => model.generateContent(prompt),
+      { maxRetries: 3, baseDelay: 2000, label: "Simulator firstQuestion" }
+    );
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
@@ -95,7 +99,10 @@ Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await retryWithBackoff(
+      () => model.generateContent(prompt),
+      { maxRetries: 3, baseDelay: 2000, label: "Simulator analyzeAndContinue" }
+    );
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");
@@ -144,7 +151,10 @@ Provide an overall assessment. Return ONLY valid JSON:
 }`;
 
   try {
-    const result = await model.generateContent(prompt);
+    const result = await retryWithBackoff(
+      () => model.generateContent(prompt),
+      { maxRetries: 3, baseDelay: 2000, label: "Simulator sessionSummary" }
+    );
     let text = result.response.text().replace(/```json|```/g, "").trim();
     const firstBrace = text.indexOf("{");
     const lastBrace = text.lastIndexOf("}");

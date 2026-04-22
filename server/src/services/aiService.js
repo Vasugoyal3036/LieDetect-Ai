@@ -3,6 +3,7 @@ const { GoogleAIFileManager } = require("@google/generative-ai/server");
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
+const { retryWithBackoff } = require("../utils/retryWithBackoff");
 
 const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
@@ -19,8 +20,10 @@ const model = genai.getGenerativeModel({
  * @param {Object} antiCheat
  * @param {Buffer|null} videoBuffer - raw video buffer from multer memoryStorage
  * @param {string} videoMimeType - e.g. "video/webm"
+ * @param {string} jobDescription - optional JD for role-specific evaluation
+ * @param {string} jobRole - optional job role title
  */
-async function analyzeAnswer(question, answer, antiCheat = {}, videoBuffer = null, videoMimeType = "video/webm") {
+async function analyzeAnswer(question, answer, antiCheat = {}, videoBuffer = null, videoMimeType = "video/webm", jobDescription = "", jobRole = "") {
   try {
     let content = [];
     let videoInstructions = "";
@@ -80,13 +83,27 @@ IMPORTANT — A VIDEO/AUDIO RECORDING IS ATTACHED. You MUST:
       if (antiCheat.pasteAttempts > 0) flags.push(`User attempted to paste text ${antiCheat.pasteAttempts} time(s)`);
       if (antiCheat.typingSpeed > 600) flags.push(`Typing speed was ${antiCheat.typingSpeed} CPM — abnormally fast`);
       if (antiCheat.timeSpentSeconds < 10) flags.push(`Response submitted in only ${antiCheat.timeSpentSeconds}s`);
+      if (antiCheat.fullscreenExits > 0) flags.push(`Candidate exited fullscreen ${antiCheat.fullscreenExits} time(s) — possible reference to external material`);
 
       if (flags.length > 0) {
         antiCheatContext = `\n**BEHAVIORAL RED FLAGS:**\n${flags.map((f) => `- ${f}`).join("\n")}`;
       }
     }
 
-    // ── 3. Build the prompt ──
+    // ── 3. Build JD context ──
+    let jdContext = "";
+    if (jobDescription || jobRole) {
+      jdContext = `\n**JOB CONTEXT:**`;
+      if (jobRole) jdContext += `\nRole: ${jobRole}`;
+      if (jobDescription) jdContext += `\nJob Description:\n${jobDescription.substring(0, 2000)}`;
+      jdContext += `\n\n**ROLE-SPECIFIC EVALUATION:** You MUST evaluate the answer with the above JD in mind:
+- Does the candidate demonstrate skills/experience relevant to this specific role?
+- Are their examples aligned with the responsibilities described in the JD?
+- Would this answer impress a hiring manager for THIS particular position?
+- Factor role-relevance into both genuineness (are they fabricating expertise?) and quality scores.`;
+    }
+
+    // ── 4. Build the prompt ──
     const mainPrompt = `
 You are an advanced Interview Authenticity AI. You detect fraud (AI-generated answers, reading from scripts, copy-paste, or canned responses).
 
@@ -94,6 +111,7 @@ Question: "${question}"
 User Typed Text: "${answer || "N/A"}"
 ${videoInstructions}
 ${antiCheatContext}
+${jdContext}
 
 **GENUINENESS SCORING (0-100):**
 - 80-100: Natural, personal anecdotes, specific details, casual language. Stuttering and imperfections are GOOD.
@@ -109,17 +127,20 @@ ${antiCheatContext}
 - "Low" = Score above 55
 
 **ANSWER QUALITY SCORING (0-100):**
-- Relevance (0-25), Depth (0-25), Clarity (0-25), Impact (0-25)
+- Relevance (0-25): How relevant is the answer to the question${jobRole ? ` and the ${jobRole} role` : ""}?
+- Depth (0-25): How detailed and thorough is the response?
+- Clarity (0-25): How well-structured and articulate is the communication?
+- Impact (0-25): Does the answer demonstrate measurable results or clear value?
 
 **SUGGESTED ANSWER:**
-If answerQualityScore < 75, provide a concise (3-5 sentence) model answer. Otherwise set to null.
+If answerQualityScore < 75, provide a concise (3-5 sentence) model answer${jobRole ? ` tailored to the ${jobRole} role` : ""}. Otherwise set to null.
 
 Return ONLY valid JSON, nothing else:
 {
   "transcription": "<full transcription of spoken answer if video was provided, otherwise null>",
   "genuinenessScore": <number>,
   "bluffRisk": "<Low|Medium|High>",
-  "feedback": "<detailed analysis explaining your reasoning>",
+  "feedback": "<detailed analysis explaining your reasoning${jobRole ? ", including role-specific observations" : ""}>",
   "answerQualityScore": <number>,
   "suggestedAnswer": "<model answer if quality < 75, otherwise null>"
 }
@@ -127,8 +148,11 @@ Return ONLY valid JSON, nothing else:
 
     content.push(mainPrompt);
 
-    // ── 4. Call Gemini ──
-    const result = await model.generateContent(content);
+    // ── 5. Call Gemini (with retry for transient errors) ──
+    const result = await retryWithBackoff(
+      () => model.generateContent(content),
+      { maxRetries: 3, baseDelay: 2000, label: "Gemini analyzeAnswer" }
+    );
     let text = result.response.text();
 
     // Clean up JSON
