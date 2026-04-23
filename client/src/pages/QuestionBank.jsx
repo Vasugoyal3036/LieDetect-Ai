@@ -27,6 +27,7 @@ export default function QuestionBank() {
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingBank, setEditingBank] = useState(null);
+    const [generating, setGenerating] = useState(false);
 
     // Form state
     const [title, setTitle] = useState('');
@@ -84,6 +85,31 @@ export default function QuestionBank() {
             fetchBanks();
         } catch (err) {
             alert('Failed to save question bank: ' + (err.response?.data?.message || err.message));
+        }
+    };
+
+    const handleGenerateAI = async () => {
+        if (!jobDescription.trim()) {
+            alert('Please paste a Job Description first so the AI can analyze it.');
+            return;
+        }
+
+        setGenerating(true);
+        try {
+            const res = await axios.post('/question-banks/generate-ai', { jobDescription, jobRole });
+            const data = res.data;
+
+            if (data.title) setTitle(data.title);
+            if (data.description) setDescription(data.description);
+            if (data.jobRole) setJobRole(data.jobRole);
+            if (data.questions && data.questions.length > 0) {
+                setQuestions(data.questions);
+            }
+        } catch (err) {
+            console.error('AI Generation failed:', err);
+            alert('AI failed to generate questions: ' + (err.response?.data?.message || err.message));
+        } finally {
+            setGenerating(false);
         }
     };
 
@@ -184,7 +210,41 @@ export default function QuestionBank() {
                                     <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginLeft: '0.5rem', fontWeight: 400 }}>AI uses this for role-specific scoring</span>
                                 </label>
                                 <textarea value={jobDescription} onChange={e => setJobDescription(e.target.value)} placeholder="Paste the full job description here... The AI will evaluate answers against this JD to check if candidates demonstrate the skills and experience required for this specific role." style={{ ...inputStyle, resize: 'vertical', minHeight: '120px' }} onFocus={handleFocus} onBlur={handleBlur} />
-                                {jobDescription && (
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerateAI}
+                                        disabled={generating || !jobDescription.trim()}
+                                        style={{
+                                            background: 'rgba(16,185,129,0.1)',
+                                            color: '#10b981',
+                                            padding: '0.6rem 1.2rem',
+                                            borderRadius: '8px',
+                                            fontWeight: 700,
+                                            fontSize: '0.85rem',
+                                            border: '1px solid rgba(16,185,129,0.3)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.5rem',
+                                            cursor: (generating || !jobDescription.trim()) ? 'not-allowed' : 'pointer',
+                                            opacity: (generating || !jobDescription.trim()) ? 0.6 : 1,
+                                            transition: 'all 0.3s',
+                                        }}
+                                    >
+                                        {generating ? (
+                                            <>
+                                                <div style={{ width: '14px', height: '14px', border: '2px solid rgba(16,185,129,0.3)', borderTopColor: '#10b981', borderRadius: '50%' }} className="animate-spin"></div>
+                                                Generating...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <i className="fas fa-magic"></i>
+                                                Generate Questions with AI
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                                {jobDescription && !generating && (
                                     <p style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: '#6ee7b7', fontWeight: 500 }}>
                                         <i className="fas fa-check-circle" style={{ marginRight: '0.3rem' }}></i>
                                         JD attached — AI will evaluate answers for role-specific relevance

@@ -7,8 +7,10 @@ const {
     getOne,
     update,
     remove,
+    generateAI,
 } = require("../controllers/questionBankController");
 
+router.post("/generate-ai", protect, generateAI);
 router.post("/", protect, create);
 router.get("/", protect, getAll);
 router.get("/:id", protect, getOne);

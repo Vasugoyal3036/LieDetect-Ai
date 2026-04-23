@@ -1,4 +1,5 @@
 const QuestionBank = require("../models/QuestionBank");
+const { generateQuestionsFromJD } = require("../services/generatorService");
 
 // Create a new question bank
 exports.create = async (req, res) => {
@@ -19,6 +20,22 @@ exports.create = async (req, res) => {
         res.status(201).json(bank);
     } catch (error) {
         res.status(500).json({ message: "Failed to create question bank", error: error.message });
+    }
+};
+
+// AI generate questions based on JD
+exports.generateAI = async (req, res) => {
+    try {
+        const { jobDescription, jobRole } = req.body;
+        if (!jobDescription) {
+            return res.status(400).json({ message: "Job description is required to generate questions" });
+        }
+
+        const result = await generateQuestionsFromJD(jobDescription, jobRole);
+        res.json(result);
+    } catch (error) {
+        console.error("AI Generation Controller Error:", error);
+        res.status(500).json({ message: "AI failed to generate questions", error: error.message });
     }
 };
 
