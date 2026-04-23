@@ -4,7 +4,7 @@ const { retryWithBackoff } = require("../utils/retryWithBackoff");
 const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
 
-const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash"];
+const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite"];
 
 /**
  * Generates a list of interview questions based on a Job Description (JD).
