@@ -5,7 +5,7 @@ const API_KEY = process.env.GEMINI_API_KEY;
 const genai = new GoogleGenerativeAI(API_KEY);
 
 // Fallback model chain — try in order if previous model is overloaded
-const MODEL_CHAIN = ["gemini-1.5-flash", "gemini-1.5-pro"];
+const MODEL_CHAIN = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest"];
 
 /**
  * Try generating content with fallback model chain
