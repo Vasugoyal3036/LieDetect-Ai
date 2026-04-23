@@ -10,7 +10,7 @@ const genai = new GoogleGenerativeAI(API_KEY);
 const fileManager = new GoogleAIFileManager(API_KEY);
 
 // Fallback model chain — try in order if previous model is overloaded
-const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const MODEL_CHAIN = ["gemini-1.5-flash", "gemini-1.5-pro"];
 
 /**
  * Multimodal analysis — accepts text and/or a video buffer.
